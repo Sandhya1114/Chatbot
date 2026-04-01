@@ -14,12 +14,14 @@ const { increment, addEscalation, getEscalations } = require("../utils/store");
 // Called when user clicks "Talk to Human" button
 // Body: { name, email, issue, conversationHistory }
 // ============================================================
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   const { name, email, issue, conversationHistory = [] } = req.body;
 
   // Basic validation
   if (!name || !email) {
-    return res.status(400).json({ error: "Name and email are required to connect with a human agent." });
+    return res
+      .status(400)
+      .json({ error: "Name and email are required to connect with a human agent." });
   }
 
   // Email format validation
@@ -28,42 +30,61 @@ router.post("/", (req, res) => {
     return res.status(400).json({ error: "Please provide a valid email address." });
   }
 
-  // Create an escalation record
   const escalationRecord = {
-    id: uuidv4(),               // Unique ID for tracking
+    id: uuidv4(),
     name: name.trim(),
     email: email.trim().toLowerCase(),
     issue: issue?.trim() || "No specific issue provided",
-    status: "pending",          // pending | in-progress | resolved
-    conversationHistory,        // Save the chat history for context
+    status: "pending",
+    conversationHistory,
     createdAt: new Date().toISOString(),
     resolvedAt: null,
   };
 
-  // Save to in-memory store (replace with DB in production)
-  addEscalation(escalationRecord);
-  increment("escalations");
+  try {
+    // addEscalation is async — must await it
+    await addEscalation(escalationRecord);
 
-  console.log(`[ESCALATION] New request from ${name} (${email}) - ID: ${escalationRecord.id}`);
+    // Fire-and-forget analytics increment
+    increment("escalations").catch(() => {});
 
-  return res.status(201).json({
-    success: true,
-    message: "Your request has been received. A human agent will contact you within 24 hours.",
-    ticketId: escalationRecord.id,
-    timestamp: escalationRecord.createdAt,
-  });
+    console.log(
+      `[ESCALATION] New request from ${name} (${email}) - ID: ${escalationRecord.id}`
+    );
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Your request has been received. A human agent will contact you within 24 hours.",
+      ticketId: escalationRecord.id,
+      timestamp: escalationRecord.createdAt,
+    });
+  } catch (err) {
+    console.error("[Escalation] Failed to save:", err.message);
+    return res
+      .status(500)
+      .json({ error: "Failed to submit escalation. Please try again." });
+  }
 });
 
 // ============================================================
 // GET /api/escalate
 // Admin endpoint to view all escalation requests
 // ============================================================
-router.get("/", (req, res) => {
-  const escalations = getEscalations();
-  res.json({
-    total: escalations.length,
-    escalations: escalations.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), // newest first
-  });
+router.get("/", async (req, res) => {
+  try {
+    // getEscalations is async — must await it
+    const escalations = await getEscalations();
+    res.json({
+      total: escalations.length,
+      escalations: escalations.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      ),
+    });
+  } catch (err) {
+    console.error("[Escalation] Fetch error:", err.message);
+    res.status(500).json({ error: "Failed to fetch escalations." });
+  }
 });
 
 module.exports = router;

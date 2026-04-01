@@ -23,7 +23,9 @@ router.post("/", async (req, res) => {
   const { message, conversationHistory = [] } = req.body;
 
   if (!message || typeof message !== "string" || message.trim() === "") {
-    return res.status(400).json({ error: "Message is required and must be a non-empty string." });
+    return res
+      .status(400)
+      .json({ error: "Message is required and must be a non-empty string." });
   }
 
   // Fire-and-forget — don't await so it doesn't slow down the response
@@ -43,7 +45,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // STEP 2: No FAQ match - call the AI
+    // STEP 2: No FAQ match — call the AI
     const model = process.env.AI_MODEL || "gpt-3.5-turbo";
     const recentHistory = conversationHistory.slice(-10).map((msg) => ({
       role: msg.role,
@@ -70,8 +72,9 @@ Guidelines:
       temperature: 0.7,
     });
 
-    const aiReply = aiResponse.choices[0]?.message?.content
-      || "I'm sorry, I couldn't generate a response. Please try again.";
+    const aiReply =
+      aiResponse.choices[0]?.message?.content ||
+      "I'm sorry, I couldn't generate a response. Please try again.";
 
     increment("aiAnswered").catch(() => {});
 
@@ -80,7 +83,6 @@ Guidelines:
       source: "ai",
       timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Chat error:", error.message);
     return res.status(500).json({
@@ -97,14 +99,11 @@ Guidelines:
 router.get("/faqs", async (req, res) => {
   try {
     const faqs = await getAllFAQs();
-    // Ensure we always have an array even if Supabase returns null
     const list = Array.isArray(faqs) ? faqs : [];
     const quickReplies = list.map(({ id, question }) => ({ id, question }));
     res.json({ faqs: quickReplies, total: quickReplies.length });
   } catch (err) {
-    // Log full error so you can see it in the backend terminal
-    console.error("[GET /api/chat/faqs] Error:", err.message, err.stack);
-    // Return empty array instead of 500 so the chat still works
+    console.error("[GET /api/chat/faqs] Error:", err.message);
     res.json({ faqs: [], total: 0 });
   }
 });

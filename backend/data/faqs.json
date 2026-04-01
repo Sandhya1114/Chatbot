@@ -1,6 +1,6 @@
 [
   {
-    "id": 1,
+    "id": 16,
     "keywords": [
       "hours",
       "open",
@@ -13,7 +13,7 @@
     "answer": "We are open Monday to Friday, 9:00 AM – 6:00 PM (EST). On weekends, we operate from 10:00 AM – 4:00 PM. We are closed on public holidays."
   },
   {
-    "id": 2,
+    "id": 17,
     "keywords": [
       "price",
       "pricing",
@@ -24,10 +24,10 @@
       "plan"
     ],
     "question": "What are your pricing plans?",
-    "answer": "We offer three plans:\n• **Basic** – $9/month (up to 3 users)\n• **Pro** – $29/month (up to 15 users)\n• **Enterprise** – Custom pricing\nAll plans include a 14-day free trial. No credit card required!"
+    "answer": "We offer three plans:\n• Basic – $9/month (up to 3 users)\n• Pro – $29/month (up to 15 users)\n• Enterprise – Custom pricing\nAll plans include a 14-day free trial. No credit card required!"
   },
   {
-    "id": 3,
+    "id": 18,
     "keywords": [
       "refund",
       "money back",
@@ -39,7 +39,7 @@
     "answer": "We offer a 30-day money-back guarantee on all paid plans. If you're not satisfied, contact our support team within 30 days of purchase and we'll issue a full refund — no questions asked."
   },
   {
-    "id": 4,
+    "id": 19,
     "keywords": [
       "contact",
       "reach",
@@ -49,10 +49,10 @@
       "help"
     ],
     "question": "How can I contact support?",
-    "answer": "You can reach our support team via:\n• **Email:** support@company.com\n• **Phone:** +1 (800) 123-4567\n• **Live Chat:** Available on this page\n• **Help Center:** help.company.com"
+    "answer": "You can reach our support team via:\n• Email: support@company.com\n• Phone: +1 (800) 123-4567\n• Live Chat: Available on this page\n• Help Center: help.company.com"
   },
   {
-    "id": 5,
+    "id": 20,
     "keywords": [
       "signup",
       "sign up",
@@ -62,10 +62,10 @@
       "start"
     ],
     "question": "How do I sign up?",
-    "answer": "Getting started is easy!\n1. Click the **'Get Started'** button on our homepage\n2. Enter your email and create a password\n3. Verify your email address\n4. Complete your profile setup\nYou'll be up and running in under 5 minutes!"
+    "answer": "Getting started is easy!\n1. Click the 'Get Started' button on our homepage\n2. Enter your email and create a password\n3. Verify your email address\n4. Complete your profile setup\nYou'll be up and running in under 5 minutes!"
   },
   {
-    "id": 6,
+    "id": 21,
     "keywords": [
       "password",
       "forgot",
@@ -75,10 +75,10 @@
       "locked"
     ],
     "question": "How do I reset my password?",
-    "answer": "To reset your password:\n1. Go to the login page\n2. Click **'Forgot Password?'**\n3. Enter your registered email address\n4. Check your inbox for the reset link (valid for 1 hour)\n5. Follow the link to create a new password"
+    "answer": "To reset your password:\n1. Go to the login page\n2. Click 'Forgot Password?'\n3. Enter your registered email address\n4. Check your inbox for the reset link (valid for 1 hour)\n5. Follow the link to create a new password"
   },
   {
-    "id": 7,
+    "id": 22,
     "keywords": [
       "integrate",
       "integration",
@@ -89,10 +89,10 @@
       "zapier"
     ],
     "question": "What integrations do you support?",
-    "answer": "We support 50+ integrations including:\n• **Communication:** Slack, Teams, Gmail\n• **CRM:** Salesforce, HubSpot\n• **Project Management:** Jira, Trello, Asana\n• **Automation:** Zapier, Make (Integromat)\n• **REST API** for custom integrations"
+    "answer": "We support 50+ integrations including:\n• Communication: Slack, Teams, Gmail\n• CRM: Salesforce, HubSpot\n• Project Management: Jira, Trello, Asana\n• Automation: Zapier, Make (Integromat)\n• REST API for custom integrations"
   },
   {
-    "id": 8,
+    "id": 23,
     "keywords": [
       "security",
       "secure",
@@ -103,10 +103,10 @@
       "safe"
     ],
     "question": "How secure is my data?",
-    "answer": "We take security seriously:\n• **256-bit SSL encryption** for all data in transit\n• **AES-256 encryption** for data at rest\n• **SOC 2 Type II** certified\n• **GDPR compliant**\n• Regular third-party security audits\nYour data is never sold or shared with third parties."
+    "answer": "We take security seriously:\n• 256-bit SSL encryption for all data in transit\n• AES-256 encryption for data at rest\n• SOC 2 Type II certified\n• GDPR compliant\n• Regular third-party security audits\nYour data is never sold or shared with third parties."
   },
   {
-    "id": 9,
+    "id": 24,
     "keywords": [
       "trial",
       "free",
@@ -115,10 +115,10 @@
       "test"
     ],
     "question": "Do you offer a free trial?",
-    "answer": "Yes! We offer a **14-day free trial** on all plans — no credit card required. You get full access to all features during your trial. At the end of the trial, you can choose to upgrade or your account will automatically move to our free tier."
+    "answer": "Yes! We offer a 14-day free trial on all plans — no credit card required. You get full access to all features during your trial. At the end of the trial, you can choose to upgrade or your account will automatically move to our free tier."
   },
   {
-    "id": 10,
+    "id": 25,
     "keywords": [
       "upgrade",
       "downgrade",
@@ -126,10 +126,10 @@
       "switch plan"
     ],
     "question": "Can I upgrade or downgrade my plan?",
-    "answer": "Absolutely! You can change your plan at any time from your **Account Settings**. Upgrades take effect immediately. Downgrades take effect at the start of your next billing cycle. Prorated credits are applied automatically."
+    "answer": "Absolutely! You can change your plan at any time from your Account Settings. Upgrades take effect immediately. Downgrades take effect at the start of your next billing cycle. Prorated credits are applied automatically."
   },
   {
-    "id": 11,
+    "id": 26,
     "keywords": [
       "mobile",
       "app",
@@ -139,10 +139,10 @@
       "tablet"
     ],
     "question": "Is there a mobile app?",
-    "answer": "Yes! Our mobile app is available for:\n• **iOS** – Download on the App Store (iOS 13+)\n• **Android** – Download on Google Play (Android 8+)\nAll your data syncs automatically across devices in real time."
+    "answer": "Yes! Our mobile app is available for:\n• iOS – Download on the App Store (iOS 13+)\n• Android – Download on Google Play (Android 8+)\nAll your data syncs automatically across devices in real time."
   },
   {
-    "id": 12,
+    "id": 27,
     "keywords": [
       "delete",
       "deactivate",
@@ -150,10 +150,10 @@
       "remove account"
     ],
     "question": "How do I delete my account?",
-    "answer": "To delete your account, go to **Settings → Account → Delete Account**. Please note:\n• All data will be permanently deleted after 30 days\n• You can export your data before deletion\n• Deletion cannot be undone after the 30-day grace period\nIf you need help, contact support@company.com."
+    "answer": "To delete your account, go to Settings → Account → Delete Account. Please note:\n• All data will be permanently deleted after 30 days\n• You can export your data before deletion\n• Deletion cannot be undone after the 30-day grace period\nIf you need help, contact support@company.com."
   },
   {
-    "id": 13,
+    "id": 28,
     "keywords": [
       "invoice",
       "billing",
@@ -163,10 +163,10 @@
       "subscription"
     ],
     "question": "How does billing work?",
-    "answer": "Billing details:\n• Plans are billed **monthly or annually** (annual = 20% savings)\n• Invoices are emailed on your billing date\n• We accept Visa, Mastercard, Amex, and PayPal\n• View all invoices under **Settings → Billing**"
+    "answer": "Billing details:\n• Plans are billed monthly or annually (annual = 20% savings)\n• Invoices are emailed on your billing date\n• We accept Visa, Mastercard, Amex, and PayPal\n• View all invoices under Settings → Billing"
   },
   {
-    "id": 14,
+    "id": 29,
     "keywords": [
       "export",
       "download",
@@ -174,10 +174,10 @@
       "data export"
     ],
     "question": "Can I export my data?",
-    "answer": "Yes! You can export your data at any time:\n1. Go to **Settings → Data Management**\n2. Click **'Export Data'**\n3. Choose format (CSV, JSON, or PDF)\n4. Download will be ready within minutes\nExported files are available for 48 hours."
+    "answer": "Yes! You can export your data at any time:\n1. Go to Settings → Data Management\n2. Click 'Export Data'\n3. Choose format (CSV, JSON, or PDF)\n4. Download will be ready within minutes\nExported files are available for 48 hours."
   },
   {
-    "id": 15,
+    "id": 30,
     "keywords": [
       "team",
       "collaborate",
@@ -187,6 +187,6 @@
       "colleague"
     ],
     "question": "How do I add team members?",
-    "answer": "To invite team members:\n1. Go to **Settings → Team**\n2. Click **'Invite Members'**\n3. Enter their email addresses\n4. Choose their role (Admin, Editor, Viewer)\n5. Click **'Send Invite'**\nThey'll receive an email invitation to join your workspace."
+    "answer": "To invite team members:\n1. Go to Settings → Team\n2. Click 'Invite Members'\n3. Enter their email addresses\n4. Choose their role (Admin, Editor, Viewer)\n5. Click 'Send Invite'\nThey'll receive an email invitation to join your workspace."
   }
 ]

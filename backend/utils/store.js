@@ -1,11 +1,5 @@
 // ============================================================
 // utils/store.js - Supabase-Backed Data Store
-// Replaces the old in-memory store. All data now persists in
-// Supabase across server restarts and deployments.
-//
-// Tables used:
-//   analytics    - one row tracking all counters
-//   escalations  - one row per human support request
 // ============================================================
 
 const { supabase } = require("./supabase");
@@ -14,8 +8,7 @@ const ANALYTICS_ROW_ID = 1;
 
 // ============================================================
 // increment(field)
-// Atomically increments an analytics counter in Supabase.
-// Uses a Postgres RPC function to avoid race conditions.
+// Atomically increments an analytics counter via Postgres RPC.
 // ============================================================
 async function increment(field) {
   const columnMap = {
@@ -34,14 +27,12 @@ async function increment(field) {
   });
 
   if (error) {
-    // Don't crash the server if analytics fail - just log it
     console.error(`[Analytics] Failed to increment ${column}:`, error.message);
   }
 }
 
 // ============================================================
-// addEscalation(data)
-// Inserts a new escalation record into the escalations table.
+// addEscalation(data) - async, must be awaited by callers
 // ============================================================
 async function addEscalation(data) {
   const { error } = await supabase.from("escalations").insert({
@@ -61,8 +52,7 @@ async function addEscalation(data) {
 }
 
 // ============================================================
-// getAnalytics()
-// Fetches the single analytics row from Supabase.
+// getAnalytics() - async, must be awaited by callers
 // ============================================================
 async function getAnalytics() {
   const { data, error } = await supabase
@@ -85,8 +75,7 @@ async function getAnalytics() {
 }
 
 // ============================================================
-// getEscalations()
-// Fetches all escalation records, newest first.
+// getEscalations() - async, must be awaited by callers
 // ============================================================
 async function getEscalations() {
   const { data, error } = await supabase
@@ -99,7 +88,6 @@ async function getEscalations() {
     return [];
   }
 
-  // Normalize snake_case DB columns to camelCase for the rest of the app
   return (data || []).map((row) => ({
     id: row.id,
     name: row.name,

@@ -1,89 +1,115 @@
 // ============================================================
 // routes/admin.js - Admin Dashboard Endpoints
-// GET  /api/admin/analytics    → View analytics data
-// POST /api/admin/faqs/upload  → Upload new FAQ (JSON)
-// PUT  /api/admin/faqs/:id     → Update a specific FAQ
-// DELETE /api/admin/faqs/:id   → Delete a specific FAQ
-// GET  /api/admin/faqs         → View all FAQs with full details
+// GET    /api/admin/analytics      → View analytics + escalations list
+// GET    /api/admin/faqs           → View all FAQs
+// POST   /api/admin/faqs/upload    → Upload/replace FAQ database
+// PUT    /api/admin/faqs/:id       → Update a specific FAQ
+// DELETE /api/admin/faqs/:id       → Delete a specific FAQ
 // ============================================================
 
 const express = require("express");
 const router = express.Router();
-const fs = require("fs");
-const path = require("path");
 const multer = require("multer");
-const { getAnalytics } = require("../utils/store");
-const { loadFAQs } = require("../utils/faqMatcher");
-
-const FAQ_FILE = path.join(__dirname, "../data/faqs.json");
+const { supabase } = require("../utils/supabase");
+const { getAnalytics, getEscalations } = require("../utils/store");
+const { loadFAQs, invalidateFAQCache } = require("../utils/faqMatcher");
 
 // Configure multer for file uploads (stores in memory)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
   fileFilter: (req, file, cb) => {
-    // Accept only JSON and CSV files
-    if (file.mimetype === "application/json" || file.mimetype === "text/csv" || file.originalname.endsWith(".json")) {
+    if (
+      file.mimetype === "application/json" ||
+      file.mimetype === "text/csv" ||
+      file.originalname.endsWith(".json")
+    ) {
       cb(null, true);
     } else {
-      cb(new Error("Only JSON and CSV files are allowed."));
+      cb(new Error("Only JSON files are allowed."));
     }
   },
 });
 
 // ============================================================
 // GET /api/admin/analytics
-// Returns all analytics data
+// Returns analytics counters + full escalations list
 // ============================================================
-router.get("/analytics", (req, res) => {
-  const data = getAnalytics();
-  res.json({
-    ...data,
-    faqAnsweredPercent: data.totalQueries > 0 ? ((data.faqAnswered / data.totalQueries) * 100).toFixed(1) : 0,
-    aiAnsweredPercent: data.totalQueries > 0 ? ((data.aiAnswered / data.totalQueries) * 100).toFixed(1) : 0,
-    escalationRate: data.totalQueries > 0 ? ((data.escalations / data.totalQueries) * 100).toFixed(1) : 0,
-  });
+router.get("/analytics", async (req, res) => {
+  try {
+    // Both functions are async — must await them
+    const [data, escalationsList] = await Promise.all([
+      getAnalytics(),
+      getEscalations(),
+    ]);
+
+    res.json({
+      totalQueries: data.totalQueries,
+      faqAnswered: data.faqAnswered,
+      aiAnswered: data.aiAnswered,
+      escalations: data.escalations,
+      faqAnsweredPercent:
+        data.totalQueries > 0
+          ? ((data.faqAnswered / data.totalQueries) * 100).toFixed(1)
+          : 0,
+      aiAnsweredPercent:
+        data.totalQueries > 0
+          ? ((data.aiAnswered / data.totalQueries) * 100).toFixed(1)
+          : 0,
+      escalationRate:
+        data.totalQueries > 0
+          ? ((data.escalations / data.totalQueries) * 100).toFixed(1)
+          : 0,
+      // Include the full list so the dashboard table works
+      escalationsList,
+    });
+  } catch (err) {
+    console.error("[Admin] Analytics error:", err.message);
+    res.status(500).json({ error: "Failed to load analytics." });
+  }
 });
 
 // ============================================================
 // GET /api/admin/faqs
-// Returns all FAQs with full details (for admin view)
+// Returns all FAQs from Supabase
 // ============================================================
-router.get("/faqs", (req, res) => {
+router.get("/faqs", async (req, res) => {
   try {
-    const faqs = loadFAQs();
+    const faqs = await loadFAQs();
     res.json({ total: faqs.length, faqs });
   } catch (err) {
+    console.error("[Admin] Load FAQs error:", err.message);
     res.status(500).json({ error: "Failed to load FAQs." });
   }
 });
 
 // ============================================================
 // POST /api/admin/faqs/upload
-// Upload a new FAQ JSON file — replaces the entire FAQ database
-// Accepts: multipart file OR raw JSON body
+// Replaces the ENTIRE FAQ table in Supabase.
+// Accepts: multipart file OR raw JSON body (array or { faqs: [] })
 // ============================================================
-router.post("/faqs/upload", upload.single("file"), (req, res) => {
+router.post("/faqs/upload", upload.single("file"), async (req, res) => {
   try {
     let newFAQs;
 
     if (req.file) {
-      // Parse uploaded JSON file
+      // Multipart file upload
       newFAQs = JSON.parse(req.file.buffer.toString("utf-8"));
     } else if (req.body && Array.isArray(req.body)) {
-      // Accept raw JSON body as well
       newFAQs = req.body;
-    } else if (req.body && req.body.faqs) {
+    } else if (req.body && Array.isArray(req.body.faqs)) {
       newFAQs = req.body.faqs;
     } else {
-      return res.status(400).json({ error: "Please provide a valid JSON file or JSON array in the request body." });
+      return res
+        .status(400)
+        .json({ error: "Provide a JSON array or { faqs: [] } body." });
     }
 
-    // Validate structure: each FAQ must have keywords, question, answer
     if (!Array.isArray(newFAQs)) {
       return res.status(400).json({ error: "FAQ data must be a JSON array." });
     }
 
+    // Validate each entry
     for (let i = 0; i < newFAQs.length; i++) {
       const faq = newFAQs[i];
       if (!faq.keywords || !faq.question || !faq.answer) {
@@ -91,66 +117,124 @@ router.post("/faqs/upload", upload.single("file"), (req, res) => {
           error: `FAQ at index ${i} is missing required fields: keywords, question, answer.`,
         });
       }
+      // Ensure keywords is an array
+      if (!Array.isArray(faq.keywords)) {
+        faq.keywords = String(faq.keywords)
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean);
+      }
       // Assign IDs if missing
       if (!faq.id) faq.id = i + 1;
     }
 
-    // Save to file
-    fs.writeFileSync(FAQ_FILE, JSON.stringify(newFAQs, null, 2), "utf-8");
+    // --- Write to Supabase ---
+    // 1. Delete all existing FAQs
+    const { error: deleteError } = await supabase
+      .from("faqs")
+      .delete()
+      .neq("id", 0); // delete all rows (neq 0 matches every row)
+
+    if (deleteError) {
+      console.error("[Admin] FAQ delete error:", deleteError.message);
+      return res
+        .status(500)
+        .json({ error: "Failed to clear existing FAQs: " + deleteError.message });
+    }
+
+    // 2. Insert new FAQs
+    const rows = newFAQs.map((faq) => ({
+      id: faq.id,
+      question: faq.question,
+      answer: faq.answer,
+      keywords: faq.keywords, // Supabase handles JSONB automatically
+    }));
+
+    const { error: insertError } = await supabase.from("faqs").insert(rows);
+
+    if (insertError) {
+      console.error("[Admin] FAQ insert error:", insertError.message);
+      return res
+        .status(500)
+        .json({ error: "Failed to insert FAQs: " + insertError.message });
+    }
+
+    // 3. Bust the in-memory cache so faqMatcher picks up new data immediately
+    invalidateFAQCache();
+
+    console.log(`[Admin] FAQ database replaced with ${newFAQs.length} entries`);
 
     res.json({
       success: true,
-      message: `FAQ database updated successfully with ${newFAQs.length} entries.`,
+      message: `FAQ database updated with ${newFAQs.length} entries.`,
       total: newFAQs.length,
     });
-
   } catch (err) {
-    console.error("FAQ upload error:", err.message);
-    res.status(500).json({ error: "Failed to parse or save FAQ data. " + err.message });
+    console.error("[Admin] FAQ upload error:", err.message);
+    res
+      .status(500)
+      .json({ error: "Failed to parse or save FAQ data: " + err.message });
   }
 });
 
 // ============================================================
 // PUT /api/admin/faqs/:id
-// Update a specific FAQ entry
+// Update a single FAQ in Supabase
 // ============================================================
-router.put("/faqs/:id", (req, res) => {
+router.put("/faqs/:id", async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const faqs = loadFAQs();
-    const index = faqs.findIndex((f) => f.id === id);
+    const id = parseInt(req.params.id, 10);
+    const { question, answer, keywords } = req.body;
 
-    if (index === -1) {
-      return res.status(404).json({ error: `FAQ with ID ${id} not found.` });
+    const updateData = {};
+    if (question !== undefined) updateData.question = question;
+    if (answer !== undefined) updateData.answer = answer;
+    if (keywords !== undefined) {
+      updateData.keywords = Array.isArray(keywords)
+        ? keywords
+        : String(keywords)
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean);
     }
 
-    // Merge updated fields
-    faqs[index] = { ...faqs[index], ...req.body, id }; // Keep original ID
-    fs.writeFileSync(FAQ_FILE, JSON.stringify(faqs, null, 2), "utf-8");
+    const { data, error } = await supabase
+      .from("faqs")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
 
-    res.json({ success: true, message: "FAQ updated successfully.", faq: faqs[index] });
+    if (error) {
+      return res.status(404).json({ error: `FAQ ${id} not found or update failed.` });
+    }
+
+    invalidateFAQCache();
+    res.json({ success: true, message: "FAQ updated.", faq: data });
   } catch (err) {
+    console.error("[Admin] FAQ update error:", err.message);
     res.status(500).json({ error: "Failed to update FAQ." });
   }
 });
 
 // ============================================================
 // DELETE /api/admin/faqs/:id
-// Remove a FAQ entry
+// Remove a FAQ from Supabase
 // ============================================================
-router.delete("/faqs/:id", (req, res) => {
+router.delete("/faqs/:id", async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const faqs = loadFAQs();
-    const newFAQs = faqs.filter((f) => f.id !== id);
+    const id = parseInt(req.params.id, 10);
 
-    if (newFAQs.length === faqs.length) {
-      return res.status(404).json({ error: `FAQ with ID ${id} not found.` });
+    const { error } = await supabase.from("faqs").delete().eq("id", id);
+
+    if (error) {
+      return res.status(404).json({ error: `FAQ ${id} not found.` });
     }
 
-    fs.writeFileSync(FAQ_FILE, JSON.stringify(newFAQs, null, 2), "utf-8");
-    res.json({ success: true, message: "FAQ deleted successfully.", remaining: newFAQs.length });
+    invalidateFAQCache();
+    res.json({ success: true, message: "FAQ deleted." });
   } catch (err) {
+    console.error("[Admin] FAQ delete error:", err.message);
     res.status(500).json({ error: "Failed to delete FAQ." });
   }
 });
