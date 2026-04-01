@@ -1,4 +1,6 @@
-
+// ============================================================
+// components/Chat/ChatWindow.jsx
+// ============================================================
 
 import React, { useRef, useEffect, useState } from 'react';
 import MessageBubble from './MessageBubble';
@@ -10,18 +12,18 @@ import '../../styles/ChatWidget.css';
 import '../../styles/ChatBody.css';
 
 function ChatWindow({ onClose }) {
-  const { messages, isTyping, sendMessage, conversationHistory } = useChat();
+  const { messages, isTyping, suggestions, sendMessage, conversationHistory } = useChat();
   const [showEscalation, setShowEscalation] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom whenever messages change
+  // Auto-scroll to bottom whenever messages or typing state changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // Show quick replies until the user has sent their first message
+  // Show INITIAL quick-replies (all FAQs) until the user sends their first message.
+  // After that, switch to CONTEXTUAL suggestions from the backend.
   const userHasSent = messages.some(m => m.role === 'user');
-  const showQuickReplies = !userHasSent;
 
   return (
     <>
@@ -38,7 +40,6 @@ function ChatWindow({ onClose }) {
             </div>
           </div>
 
-          {/* Talk to Human button */}
           <button
             className="btn-escalate-header"
             onClick={() => setShowEscalation(true)}
@@ -47,7 +48,6 @@ function ChatWindow({ onClose }) {
             👤 Human
           </button>
 
-          {/* Close button */}
           <button
             className="chat-header__close"
             onClick={onClose}
@@ -61,7 +61,7 @@ function ChatWindow({ onClose }) {
 
         {/* ---- Message List ---- */}
         <div className="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
-          {/* Welcome message shown when no messages yet */}
+
           {messages.length === 0 && (
             <div className="chat-welcome">
               <span className="chat-welcome__emoji">👋</span>
@@ -73,12 +73,10 @@ function ChatWindow({ onClose }) {
             </div>
           )}
 
-          {/* Render all messages */}
           {messages.map(msg => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
 
-          {/* Typing indicator */}
           {isTyping && (
             <div className="typing-indicator" aria-label="Bot is typing">
               <div className="message-avatar" aria-hidden="true">🤖</div>
@@ -88,13 +86,17 @@ function ChatWindow({ onClose }) {
             </div>
           )}
 
-          {/* Invisible anchor to scroll to */}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ---- Quick Reply FAQ Buttons ---- */}
+        {/* ---- Quick Replies ----
+            • showInitial=true  → shows all FAQs (before any message sent)
+            • showInitial=false → shows contextual suggestions from backend
+            The component handles both modes internally.
+        ---- */}
         <QuickReplies
-          visible={showQuickReplies}
+          showInitial={!userHasSent}
+          suggestions={suggestions}
           onSelect={(question) => sendMessage(question)}
         />
 
@@ -102,7 +104,6 @@ function ChatWindow({ onClose }) {
         <ChatInput onSend={sendMessage} disabled={isTyping} />
       </div>
 
-      {/* ---- Escalation Modal (rendered on top) ---- */}
       {showEscalation && (
         <EscalationModal
           onClose={() => setShowEscalation(false)}

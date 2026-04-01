@@ -7,7 +7,7 @@ import {
 import '../../styles/AdminDashboard.css';
 
 // ============================================================
-// Direct API calls for FAQ management
+// API helpers
 // ============================================================
 async function getAdminFAQs() {
   const res = await fetch('/api/admin/faqs');
@@ -21,13 +21,17 @@ async function getAdminFAQs() {
   return [];
 }
 
-// FIX: Send Content-Type: application/json so Express can parse the body.
-// Previously this was missing, so req.body was always undefined on the server.
-async function uploadFAQsToServer(faqs) {
-  const res = await fetch('/api/admin/faqs/upload', {
+/**
+ * Upload FAQs to the server.
+ * @param {Array}   faqArray  - parsed FAQ objects
+ * @param {boolean} replace   - true = wipe existing, false = append
+ */
+async function uploadFAQsToServer(faqArray, replace = false) {
+  const url = `/api/admin/faqs/upload${replace ? '?replace=true' : ''}`;
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(faqs), // send the array directly — server accepts plain array
+    body: JSON.stringify(faqArray),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Upload failed');
@@ -45,9 +49,6 @@ function AnalyticsTab() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      // fetchAnalytics() hits GET /api/admin/analytics which now returns
-      // { totalQueries, faqAnswered, aiAnswered, escalations,
-      //   faqAnsweredPercent, aiAnsweredPercent, escalationRate, escalationsList }
       const result = await fetchAnalytics();
       setData(result);
     } catch (err) {
@@ -85,7 +86,6 @@ function AnalyticsTab() {
     { icon: '👤', label: 'Escalations',    value: data?.escalations  ?? 0, colorClass: 'escalate', percent: data?.escalationRate },
   ];
 
-  // FIX: escalationsList now comes from the API response
   const escalationsList = data?.escalationsList ?? [];
 
   return (
@@ -122,11 +122,7 @@ function AnalyticsTab() {
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Issue</th>
-                <th>Status</th>
-                <th>Date</th>
+                <th>Name</th><th>Email</th><th>Issue</th><th>Status</th><th>Date</th>
               </tr>
             </thead>
             <tbody>
@@ -161,11 +157,15 @@ function FAQManagerTab() {
   const [loading, setLoading]     = useState(true);
   const [alert, setAlert]         = useState(null);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef              = useRef(null);
+
+  // FIX 1: Upload mode toggle — "append" (default) or "replace"
+  const [uploadMode, setUploadMode] = useState('append');
+
+  const fileInputRef = useRef(null);
 
   const showAlert = useCallback((type, message) => {
     setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
+    setTimeout(() => setAlert(null), 6000);
   }, []);
 
   const loadFAQs = useCallback(async () => {
@@ -183,35 +183,62 @@ function FAQManagerTab() {
 
   useEffect(() => { loadFAQs(); }, [loadFAQs]);
 
-  // Handle JSON file upload — reads the file client-side, then POSTs to server
+  // ============================================================
+  // handleFileUpload
+  // FIX 2: Accepts JSON, CSV, and PDF.
+  //   - JSON: parsed client-side as before
+  //   - CSV:  sent as JSON after client-side parse
+  //   - PDF:  sent directly as multipart/form-data so the server
+  //           can use pdf-parse on the binary buffer
+  // ============================================================
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
+    const filename = file.name.toLowerCase();
+
     try {
+      const isReplace = uploadMode === 'replace';
+
+      // ---- PDF: send as FormData so server can parse binary ----
+      if (filename.endsWith('.pdf')) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const url = `/api/admin/faqs/upload${isReplace ? '?replace=true' : ''}`;
+        const res = await fetch(url, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        showAlert('success', data.message || `PDF uploaded successfully!`);
+        loadFAQs();
+        return;
+      }
+
+      // ---- JSON / CSV: read as text, parse client-side, send as JSON ----
       const text = await file.text();
-      let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        throw new Error('Invalid JSON file. Please check the file format.');
+      let faqArray;
+
+      if (filename.endsWith('.json')) {
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { throw new Error('Invalid JSON file.'); }
+        faqArray = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.faqs) ? parsed.faqs : null;
+        if (!faqArray) throw new Error('JSON must be an array or { faqs: [] }.');
+
+      } else if (filename.endsWith('.csv')) {
+        faqArray = parseCSVClient(text);
+
+      } else {
+        throw new Error('Unsupported file type. Please upload a .json, .csv, or .pdf file.');
       }
 
-      // Accept both a plain array and { faqs: [...] }
-      const faqArray = Array.isArray(parsed)
-        ? parsed
-        : Array.isArray(parsed?.faqs)
-          ? parsed.faqs
-          : null;
-
-      if (!faqArray) {
-        throw new Error('JSON must be an array of FAQ objects or { faqs: [...] }.');
+      if (!faqArray || faqArray.length === 0) {
+        throw new Error('No valid FAQ entries found in the file.');
       }
 
-      const result = await uploadFAQsToServer(faqArray);
+      const result = await uploadFAQsToServer(faqArray, isReplace);
       showAlert('success', result.message || `Successfully uploaded ${faqArray.length} FAQs!`);
-      loadFAQs(); // Refresh table
+      loadFAQs();
+
     } catch (err) {
       showAlert('error', 'Upload failed: ' + err.message);
     } finally {
@@ -236,7 +263,7 @@ function FAQManagerTab() {
       <div className="section-header">
         <h2 className="section-title">FAQ Manager</h2>
         <p className="section-subtitle">
-          Upload a JSON file to replace the knowledge base · Changes take effect immediately
+          Upload JSON, CSV, or PDF · Choose Append or Replace mode
         </p>
       </div>
 
@@ -246,37 +273,86 @@ function FAQManagerTab() {
         </div>
       )}
 
-      {/* Upload Area */}
+      {/* ── Upload Mode Toggle ── */}
+      <div style={{
+        display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center',
+        background: 'white', border: '1px solid #e2e8f0', borderRadius: 12,
+        padding: '12px 16px',
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Upload mode:</span>
+        {['append', 'replace'].map(mode => (
+          <label key={mode} style={{
+            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+            fontSize: 13, fontWeight: uploadMode === mode ? 700 : 400,
+            color: uploadMode === mode ? 'var(--color-primary)' : '#64748b',
+          }}>
+            <input
+              type="radio"
+              name="uploadMode"
+              value={mode}
+              checked={uploadMode === mode}
+              onChange={() => setUploadMode(mode)}
+              style={{ accentColor: 'var(--color-primary)' }}
+            />
+            {mode === 'append' ? '➕ Append (add to existing)' : '🔄 Replace (wipe & reload)'}
+          </label>
+        ))}
+        <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 'auto' }}>
+          {uploadMode === 'append'
+            ? 'New FAQs will be added alongside existing ones'
+            : '⚠️ This will DELETE all current FAQs first'}
+        </span>
+      </div>
+
+      {/* ── Upload Area ── */}
       <label className="upload-area" htmlFor="faq-upload">
         <span className="upload-area__icon">{uploading ? '⏳' : '📁'}</span>
         <p className="upload-area__title">
-          {uploading ? 'Uploading to Supabase...' : 'Click to upload FAQ JSON file'}
+          {uploading
+            ? 'Uploading to Supabase...'
+            : 'Click to upload FAQ file (JSON, CSV, or PDF)'}
         </p>
         <p className="upload-area__hint">
-          Accepts .json · Max 5MB · Replaces the entire FAQ database in Supabase
+          Accepts .json · .csv · .pdf · Max 10MB ·{' '}
+          {uploadMode === 'append' ? 'Appends to existing FAQs' : 'Replaces entire FAQ database'}
         </p>
         <input
           id="faq-upload"
           ref={fileInputRef}
           type="file"
-          accept=".json,application/json"
+          accept=".json,.csv,.pdf,application/json,text/csv,application/pdf"
           onChange={handleFileUpload}
           disabled={uploading}
         />
       </label>
 
-      {/* JSON Format hint */}
+      {/* ── Format hints ── */}
       <div style={{
         background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12,
         padding: '12px 16px', marginBottom: 20, fontSize: 12, color: '#64748b',
+        display: 'flex', flexDirection: 'column', gap: 6,
       }}>
-        <strong style={{ color: '#475569' }}>Expected JSON format:</strong>{' '}
-        <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>
-          {'[{ "id": 1, "question": "...", "answer": "...", "keywords": ["kw1", "kw2"] }]'}
-        </code>
+        <div>
+          <strong style={{ color: '#475569' }}>JSON:</strong>{' '}
+          <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>
+            {'[{ "question": "...", "answer": "...", "keywords": ["kw1"] }]'}
+          </code>
+        </div>
+        <div>
+          <strong style={{ color: '#475569' }}>CSV:</strong>{' '}
+          <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>
+            {'question,answer,keywords (header row required; keywords separated by semicolons)'}
+          </code>
+        </div>
+        <div>
+          <strong style={{ color: '#475569' }}>PDF:</strong>{' '}
+          <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>
+            {'Q: question text A: answer text — or numbered 1. Question\\nAnswer blocks'}
+          </code>
+        </div>
       </div>
 
-      {/* FAQ Table */}
+      {/* ── FAQ Table ── */}
       <div className="faq-table-wrap">
         <div className="table-header">
           <span className="table-title">Current FAQ Knowledge Base (Supabase)</span>
@@ -290,7 +366,7 @@ function FAQManagerTab() {
         ) : faqs.length === 0 ? (
           <div className="empty-state">
             <span className="empty-state__icon">📭</span>
-            No FAQs found in Supabase. Upload a JSON file above to get started.
+            No FAQs found in Supabase. Upload a file above to get started.
           </div>
         ) : (
           <table>
@@ -313,12 +389,9 @@ function FAQManagerTab() {
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {keywords.slice(0, 4).map(kw => (
                           <span key={kw} style={{
-                            background: 'var(--color-bg-chat)',
-                            padding: '1px 7px',
-                            borderRadius: 'var(--radius-full)',
-                            fontSize: 11,
-                            color: 'var(--color-text-secondary)',
-                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-chat)', padding: '1px 7px',
+                            borderRadius: 'var(--radius-full)', fontSize: 11,
+                            color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)',
                           }}>{kw}</span>
                         ))}
                         {keywords.length > 4 && (
@@ -349,6 +422,62 @@ function FAQManagerTab() {
       </div>
     </div>
   );
+}
+
+// ============================================================
+// Client-side CSV parser (mirrors the server-side one)
+// ============================================================
+function parseCSVClient(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
+
+  function parseLine(line) {
+    const fields = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        fields.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    fields.push(current.trim());
+    return fields;
+  }
+
+  const headers = parseLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z]/g, ''));
+  const qIdx = headers.indexOf('question');
+  const aIdx = headers.indexOf('answer');
+  const kIdx = headers.indexOf('keywords');
+
+  if (qIdx === -1 || aIdx === -1) throw new Error('CSV must contain "question" and "answer" columns.');
+
+  const faqs = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const fields = parseLine(line);
+    const question = fields[qIdx]?.replace(/^"|"$/g, '').trim();
+    const answer   = fields[aIdx]?.replace(/^"|"$/g, '').trim();
+    if (!question || !answer) continue;
+
+    let keywords = [];
+    if (kIdx !== -1 && fields[kIdx]) {
+      const raw = fields[kIdx].replace(/^"|"$/g, '').trim();
+      keywords = raw.split(/[;,|]/).map(k => k.trim()).filter(Boolean);
+    }
+
+    faqs.push({ question, answer, keywords });
+  }
+
+  if (faqs.length === 0) throw new Error('No valid rows found in CSV.');
+  return faqs;
 }
 
 // ============================================================
