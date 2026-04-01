@@ -1,0 +1,16 @@
+{
+  "name": "chatbot-app",
+  "version": "1.0.0",
+  "description": "Full-stack chatbot application with FAQ, AI, escalation, and admin dashboard",
+  "private": true,
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "start:backend": "cd backend && npm run dev",
+    "start:frontend": "cd frontend && npm start",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "setup": "npm run install:all && cd backend && cp .env.example .env"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

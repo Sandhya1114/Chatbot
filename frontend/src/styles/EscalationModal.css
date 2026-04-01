@@ -1,0 +1,236 @@
+/* ============================================================
+   styles/EscalationModal.css - "Talk to Human" Modal Styles
+   ============================================================ */
+
+/* Overlay/Backdrop */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  animation: fadeIn 0.2s ease;
+  padding: var(--spacing-md);
+}
+
+/* Modal Card */
+.modal {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+/* Modal Header */
+.modal__header {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  padding: var(--spacing-lg) var(--spacing-xl);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal__header::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -20px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+}
+
+.modal__header-icon {
+  width: 44px;
+  height: 44px;
+  background: rgba(255,255,255,0.2);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: var(--spacing-sm);
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.modal__title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.modal__subtitle {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+  margin-top: 4px;
+}
+
+/* Modal Body */
+.modal__body {
+  padding: var(--spacing-xl);
+}
+
+/* Form Group */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+  letter-spacing: 0.01em;
+}
+
+.form-label span {
+  color: var(--color-danger);
+  margin-left: 2px;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  background: white;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: var(--font-family);
+  line-height: 1.5;
+}
+
+/* Error message for form validation */
+.form-error {
+  font-size: 12px;
+  color: var(--color-danger);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Modal Actions */
+.modal__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+}
+
+/* Base button styles */
+.btn {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn--secondary {
+  background: var(--color-bg-chat);
+  color: var(--color-text-secondary);
+  border: 1.5px solid var(--color-border);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--color-border-light);
+}
+
+/* Spinner for loading state */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Success State */
+.modal__success {
+  text-align: center;
+  padding: var(--spacing-xl);
+}
+
+.modal__success-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: var(--spacing-md);
+  animation: bounce 0.6s ease;
+}
+
+.modal__success-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.modal__success-text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.ticket-id {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bubble-faq-badge);
+  color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: var(--spacing-sm);
+}
