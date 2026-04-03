@@ -1,29 +1,37 @@
 // ============================================================
-// components/Chat/ChatWindow.jsx
+// components/Chat/ChatWindow.jsx — with Persistent History
 // ============================================================
 
-import React, { useRef, useEffect, useState } from 'react';
-import MessageBubble from './MessageBubble';
-import QuickReplies from './QuickReplies';
-import ChatInput from './ChatInput';
-import EscalationModal from './EscalationModal';
-import { useChat } from '../../hooks/useChat';
-import '../../styles/ChatWidget.css';
-import '../../styles/ChatBody.css';
+import React, { useRef, useEffect, useState } from "react";
+import MessageBubble from "./MessageBubble";
+import QuickReplies from "./QuickReplies";
+import ChatInput from "./ChatInput";
+import EscalationModal from "./EscalationModal";
+import { useChat } from "../../hooks/useChat";
+import "../../styles/ChatWidget.css";
+import "../../styles/ChatBody.css";
 
-function ChatWindow({ onClose }) {
-  const { messages, isTyping, suggestions, sendMessage, conversationHistory } = useChat();
+// appId: namespace for this embed — pass from ChatWidget
+function ChatWindow({ onClose, appId = "default" }) {
+  const {
+    messages,
+    isTyping,
+    isLoading,
+    suggestions,
+    sendMessage,
+    clearMessages,
+    conversationHistory,
+  } = useChat(appId);
+
   const [showEscalation, setShowEscalation] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom whenever messages or typing state changes
+  // Auto-scroll to bottom on new messages or typing
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // Show INITIAL quick-replies (all FAQs) until the user sends their first message.
-  // After that, switch to CONTEXTUAL suggestions from the backend.
-  const userHasSent = messages.some(m => m.role === 'user');
+  const userHasSent = messages.some((m) => m.role === "user");
 
   return (
     <>
@@ -36,9 +44,22 @@ function ChatWindow({ onClose }) {
             <div className="chat-header__title">Support Assistant</div>
             <div className="chat-header__status">
               <span className="status-dot" aria-hidden="true" />
-              Online · Typically replies instantly
+              {isLoading ? "Restoring your chat…" : "Online · Typically replies instantly"}
             </div>
           </div>
+
+          {/* New Chat button — clears history and starts fresh */}
+          {messages.length > 0 && !isLoading && (
+            <button
+              className="btn-escalate-header"
+              onClick={clearMessages}
+              aria-label="Start a new chat"
+              title="Clear history and start fresh"
+              style={{ marginRight: 4 }}
+            >
+              🔄 New
+            </button>
+          )}
 
           <button
             className="btn-escalate-header"
@@ -60,28 +81,59 @@ function ChatWindow({ onClose }) {
         </div>
 
         {/* ---- Message List ---- */}
-        <div className="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
+        <div
+          className="chat-messages"
+          role="log"
+          aria-live="polite"
+          aria-label="Chat messages"
+        >
+          {/* ---- Loading skeleton while restoring history ---- */}
+          {isLoading && (
+            <div className="chat-welcome" style={{ opacity: 0.6 }}>
+              <span className="chat-welcome__emoji">⏳</span>
+              <h3 className="chat-welcome__title">Restoring your conversation…</h3>
+              <p className="chat-welcome__subtitle">Just a moment.</p>
+            </div>
+          )}
 
-          {messages.length === 0 && (
+          {/* ---- Welcome screen (new session, no messages) ---- */}
+          {!isLoading && messages.length === 0 && (
             <div className="chat-welcome">
               <span className="chat-welcome__emoji">👋</span>
               <h3 className="chat-welcome__title">Hello! How can I help?</h3>
               <p className="chat-welcome__subtitle">
                 Ask me anything, or choose a common question below.
-                <br />I'm here to help 24/7!
+                <br />I&apos;m here to help 24/7!
               </p>
             </div>
           )}
 
-          {messages.map(msg => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
+          {/* ---- Restored history banner ---- */}
+          {!isLoading && messages.length > 0 && !userHasSent && (
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: 11,
+                color: "var(--color-text-muted)",
+                padding: "4px 0 8px",
+              }}
+            >
+              💬 Your previous conversation has been restored
+            </div>
+          )}
 
+          {/* ---- Messages ---- */}
+          {!isLoading &&
+            messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)}
+
+          {/* ---- Typing indicator ---- */}
           {isTyping && (
             <div className="typing-indicator" aria-label="Bot is typing">
               <div className="message-avatar" aria-hidden="true">🤖</div>
               <div className="typing-dots">
-                <span /><span /><span />
+                <span />
+                <span />
+                <span />
               </div>
             </div>
           )}
@@ -89,19 +141,17 @@ function ChatWindow({ onClose }) {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ---- Quick Replies ----
-            • showInitial=true  → shows all FAQs (before any message sent)
-            • showInitial=false → shows contextual suggestions from backend
-            The component handles both modes internally.
-        ---- */}
-        <QuickReplies
-          showInitial={!userHasSent}
-          suggestions={suggestions}
-          onSelect={(question) => sendMessage(question)}
-        />
+        {/* ---- Quick Replies ---- */}
+        {!isLoading && (
+          <QuickReplies
+            showInitial={!userHasSent}
+            suggestions={suggestions}
+            onSelect={(question) => sendMessage(question)}
+          />
+        )}
 
         {/* ---- Input Bar ---- */}
-        <ChatInput onSend={sendMessage} disabled={isTyping} />
+        <ChatInput onSend={sendMessage} disabled={isTyping || isLoading} />
       </div>
 
       {showEscalation && (

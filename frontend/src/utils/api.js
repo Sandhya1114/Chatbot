@@ -1,14 +1,12 @@
 // ============================================================
-// utils/api.js - API Helper Functions
-// All fetch calls to the backend are centralized here.
+// utils/api.js — API Helper Functions (with Session Support)
 // ============================================================
 
-const BASE_URL = process.env.REACT_APP_API_URL || '';
+const BASE_URL = process.env.REACT_APP_API_URL || "";
 
-// Generic fetch wrapper with error handling
 async function apiFetch(endpoint, options = {}) {
   const response = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
   });
 
@@ -22,48 +20,60 @@ async function apiFetch(endpoint, options = {}) {
 }
 
 // ---- Chat API ----
-export const sendChatMessage = (message, conversationHistory) =>
-  apiFetch('/api/chat', {
-    method: 'POST',
-    body: JSON.stringify({ message, conversationHistory }),
+export const sendChatMessage = (message, sessionId, appId, conversationHistory) =>
+  apiFetch("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ message, sessionId, appId, conversationHistory }),
+  });
+
+// ---- Session History ----
+export const fetchChatHistory = (sessionId, appId = "default") =>
+  apiFetch(`/api/chat/history?sessionId=${encodeURIComponent(sessionId)}&appId=${encodeURIComponent(appId)}`);
+
+export const clearChatHistory = (sessionId) =>
+  apiFetch("/api/chat/history", {
+    method: "DELETE",
+    body: JSON.stringify({ sessionId }),
   });
 
 // ---- FAQ API ----
-export const fetchQuickReplies = () =>
-  apiFetch('/api/chat/faqs');
+export const fetchQuickReplies = () => apiFetch("/api/chat/faqs");
 
 // ---- Escalation API ----
 export const submitEscalation = (payload) =>
-  apiFetch('/api/escalate', {
-    method: 'POST',
+  apiFetch("/api/escalate", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 
 // ---- Admin API ----
-export const fetchAnalytics = () =>
-  apiFetch('/api/admin/analytics');
-
-export const fetchAdminFAQs = () =>
-  apiFetch('/api/admin/faqs');
+export const fetchAnalytics = () => apiFetch("/api/admin/analytics");
+export const fetchAdminFAQs = () => apiFetch("/api/admin/faqs");
 
 export const uploadFAQs = (faqs) =>
-  apiFetch('/api/admin/faqs/upload', {
-    method: 'POST',
+  apiFetch("/api/admin/faqs/upload", {
+    method: "POST",
     body: JSON.stringify(faqs),
   });
 
 export const deleteFAQ = (id) =>
-  apiFetch(`/api/admin/faqs/${id}`, { method: 'DELETE' });
+  apiFetch(`/api/admin/faqs/${id}`, { method: "DELETE" });
 
-// ---- Helper: Format timestamp ----
+// ---- Formatting Helpers ----
 export const formatTime = (isoString) => {
-  if (!isoString) return '';
-  return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (!isoString) return "";
+  return new Date(isoString).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 export const formatDateTime = (isoString) => {
-  if (!isoString) return '';
+  if (!isoString) return "";
   return new Date(isoString).toLocaleString([], {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
