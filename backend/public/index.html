@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acme SaaS — Demo Site</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: #f8fafc; color: #0f172a; }
+
+    /* NAV */
+    nav {
+      background: #fff; border-bottom: 1px solid #e2e8f0;
+      padding: 0 40px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    }
+    .nav-logo { font-size: 17px; font-weight: 800; color: #4f46e5; letter-spacing: -0.02em; }
+    .nav-links { display: flex; gap: 8px; }
+    .nav-link {
+      padding: 7px 16px; border-radius: 9999px; font-size: 13px; font-weight: 600;
+      color: #475569; text-decoration: none; transition: all 150ms;
+    }
+    .nav-link:hover { background: #f1f5f9; color: #0f172a; }
+    .nav-link.primary { background: #4f46e5; color: #fff; }
+    .nav-link.primary:hover { background: #3730a3; }
+
+    /* HERO */
+    .hero {
+      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      color: #fff; padding: 90px 40px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero::before, .hero::after {
+      content: ''; position: absolute; border-radius: 50%;
+      background: rgba(255,255,255,.06);
+    }
+    .hero::before { width: 500px; height: 500px; top: -200px; left: -100px; }
+    .hero::after  { width: 300px; height: 300px; bottom: -100px; right: -60px; }
+    .hero-badge {
+      display: inline-block; padding: 5px 14px;
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+      border-radius: 9999px; font-size: 12px; font-weight: 700;
+      letter-spacing: .05em; text-transform: uppercase; margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(32px, 5vw, 56px); font-weight: 800; letter-spacing: -0.03em;
+      margin-bottom: 18px; line-height: 1.1; position: relative; z-index: 1;
+    }
+    .hero p {
+      font-size: 18px; opacity: .82; max-width: 500px;
+      margin: 0 auto 36px; line-height: 1.6; position: relative; z-index: 1;
+    }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; position: relative; z-index: 1; }
+    .btn-white {
+      background: #fff; color: #4f46e5;
+      padding: 13px 28px; border-radius: 9999px;
+      font-weight: 700; font-size: 15px; border: none; cursor: pointer;
+      transition: all 150ms;
+    }
+    .btn-white:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.2); }
+    .btn-outline {
+      background: rgba(255,255,255,.12); color: #fff;
+      padding: 13px 28px; border-radius: 9999px;
+      font-weight: 600; font-size: 15px;
+      border: 1.5px solid rgba(255,255,255,.3);
+      text-decoration: none; display: inline-flex; align-items: center;
+      transition: all 150ms;
+    }
+    .btn-outline:hover { background: rgba(255,255,255,.22); }
+
+    /* FEATURES */
+    section { padding: 80px 40px; max-width: 1000px; margin: 0 auto; }
+    section h2 {
+      text-align: center; font-size: 32px; font-weight: 800;
+      margin-bottom: 48px; letter-spacing: -0.02em;
+    }
+    .features {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;
+    }
+    .feature-card {
+      background: #fff; border-radius: 16px; padding: 28px 24px;
+      border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+      transition: all 150ms;
+    }
+    .feature-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.08); transform: translateY(-2px); }
+    .feature-icon { font-size: 32px; margin-bottom: 12px; }
+    .feature-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { font-size: 14px; color: #64748b; line-height: 1.6; }
+
+    /* CHAT CTA */
+    .chat-cta {
+      background: #f1f5f9; border-top: 1px solid #e2e8f0;
+      padding: 60px 40px; text-align: center;
+    }
+    .chat-cta h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .chat-cta p { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-indigo {
+      background: #4f46e5; color: #fff; padding: 11px 24px; border-radius: 9999px;
+      font-weight: 700; font-size: 14px; border: none; cursor: pointer; transition: all 150ms;
+    }
+    .btn-indigo:hover { background: #3730a3; }
+    .btn-ghost {
+      background: #fff; color: #4f46e5; padding: 11px 24px; border-radius: 9999px;
+      font-weight: 600; font-size: 14px; border: 1.5px solid #c7d2fe; cursor: pointer; transition: all 150ms;
+      text-decoration: none; display: inline-block;
+    }
+    .btn-ghost:hover { background: #f5f3ff; }
+
+    footer {
+      border-top: 1px solid #e2e8f0; padding: 24px 40px;
+      text-align: center; font-size: 13px; color: #94a3b8;
+    }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 16px; }
+      .hero, section { padding-left: 20px; padding-right: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">🚀 Acme SaaS</div>
+  <div class="nav-links">
+    <a href="#features" class="nav-link">Features</a>
+    <a href="admin.html" class="nav-link">📊 Admin</a>
+    <a href="#" class="nav-link primary" onclick="window._cb && window._cb.open()">💬 Chat</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">⚡ AI-Powered Support · Live Now</div>
+  <h1>The All-In-One<br>SaaS Platform</h1>
+  <p>Work smarter with powerful tools, deep analytics, and 24/7 AI-powered support built in.</p>
+  <div class="hero-btns">
+    <button class="btn-white" onclick="window._cb && window._cb.open()">💬 Try the Chatbot</button>
+    <a href="admin.html" class="btn-outline">📊 Open Admin Panel →</a>
+  </div>
+</div>
+
+<section id="features">
+  <h2>Everything you need</h2>
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Lightning Fast</div>
+      <div class="feature-desc">Optimized for performance with 99.9% uptime SLA and global CDN.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">Secure by Default</div>
+      <div class="feature-desc">Enterprise-grade encryption, SOC 2 certified, and GDPR compliant.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Deep Analytics</div>
+      <div class="feature-desc">Real-time insights into team productivity and customer interactions.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🤝</div>
+      <div class="feature-title">50+ Integrations</div>
+      <div class="feature-desc">Works with Slack, Jira, Salesforce, HubSpot, Zapier, and more.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <div class="feature-title">Mobile Ready</div>
+      <div class="feature-desc">Native apps for iOS and Android. Your data syncs in real time.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🛟</div>
+      <div class="feature-title">24/7 AI Support</div>
+      <div class="feature-desc">AI chat answers FAQs instantly and escalates to humans when needed.</div>
+    </div>
+  </div>
+</section>
+
+<div class="chat-cta">
+  <h3>💬 Have a question? We're here to help!</h3>
+  <p>Ask the AI chatbot anything — it knows all our FAQs and can connect you with a human agent.</p>
+  <div class="cta-row">
+    <button class="btn-indigo" onclick="window._cb && window._cb.open()">Open Chat Widget</button>
+    <a href="admin.html" class="btn-ghost">📊 Admin Dashboard</a>
+  </div>
+</div>
+
+<footer>
+  Acme SaaS Platform · ChatBot Embed Library Demo · Running on localhost:5000
+</footer>
+
+<!-- ══════════════════════════════════════════════════
+     CHATBOT EMBED — This is all you need on any site!
+     apiUrl is empty = same-origin (backend is on same server)
+════════════════════════════════════════════════════ -->
+<script src="/chatbot.js"></script>
+<script>
+  window._cb = initChatbot({
+    apiUrl: "",          // Empty = same server (localhost:5000)
+    appId:  "demo-site",
+    bot: {
+      name:   "Aria",
+      avatar: "🤖",
+      status: "Online · Typically replies instantly",
+    },
+    theme: {
+      primary: "#4f46e5",
+    },
+  });
+</script>
+
+</body>
+</html>
