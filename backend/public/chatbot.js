@@ -1,6 +1,6 @@
 /*!
- * chatbot.js — Embed Library v2.0.0
- * Drop-in chat widget. Preserves all original React app functionality.
+ * chatbot.js — Embed Library v3.0.0
+ * Drop-in chat widget with Auto-Crawl support.
  *
  * Usage:
  *   <script src="chatbot.js"></script>
@@ -9,11 +9,22 @@
  *       apiUrl: "https://your-backend.com",
  *       appId:  "my-app",
  *       theme:  { primary: "#4f46e5" },
- *       bot:    { name: "Aria", avatar: "🤖", status: "Online · Typically replies instantly" }
+ *       bot:    { name: "Aria", avatar: "🤖", status: "Online · Typically replies instantly" },
+ *
+ *       // ── NEW: Auto-Crawl options ──────────────────────────────
+ *       autoCrawl: true,                  // enable auto-crawl on embed
+ *       autoCrawlUrls: [],                // [] = crawl current page; or supply explicit URLs
+ *       autoCrawlMode: 'append',          // 'append' | 'replace'
+ *       autoCrawlSaveToDb: true,          // true = persist to Supabase; false = session-only
+ *       autoCrawlTTLHours: 24,            // hours before re-crawling same URL (0 = always)
+ *       autoCrawlDeepLinks: false,        // also discover & crawl internal links on each URL
+ *       autoCrawlMaxPages: 10,            // max pages when deepLinks is true
+ *       autoCrawlOnlyFAQPaths: false,     // only deep-crawl paths matching /faq|help|support/
+ *       autoCrawlSilent: true,            // suppress all console logs from crawl
  *     });
  *   </script>
  *
- * All functionality from original React app preserved:
+ * All original functionality preserved:
  *   ✅ Persistent session history (localStorage + Supabase via backend)
  *   ✅ FAQ quick-replies (initial) + contextual suggestions (after each reply)
  *   ✅ Source badges (📚 FAQ / ✨ AI)
@@ -24,6 +35,14 @@
  *   ✅ Auto-resize textarea, Enter-to-send, Shift+Enter for newline
  *   ✅ Mobile full-screen responsive
  *   ✅ All original CSS variables + animations
+ *
+ * NEW in v3.0.0:
+ *   ✅ Auto-crawl current page or specified URLs on embed
+ *   ✅ Deep-link discovery (crawl internal links automatically)
+ *   ✅ TTL-based deduplication (won't re-crawl same URL within N hours)
+ *   ✅ Session-only FAQ injection (no DB write needed)
+ *   ✅ Crawl status indicator in chat header
+ *   ✅ Graceful silent failure — chatbot works even if crawl fails
  */
 
 (function (global) {
@@ -33,41 +52,51 @@
   global.__chatbotLoaded = true;
 
   // ─────────────────────────────────────────────────────────────
-  // DEFAULT CONFIG — matches original React app defaults exactly
+  // DEFAULT CONFIG
   // ─────────────────────────────────────────────────────────────
   var DEFAULTS = {
-    apiUrl:   "",
-    appId:    "default",
+    apiUrl: "",
+    appId: "default",
     position: "bottom-right",
     bot: {
-      name:   "Support Assistant",
+      name: "Support Assistant",
       avatar: "🤖",
       status: "Online · Typically replies instantly",
     },
     launcher: { size: 60 },
     theme: {
-      primary:      "#4f46e5",
-      primaryDark:  "#3730a3",
+      primary: "#4f46e5",
+      primaryDark: "#3730a3",
       primaryLight: "#818cf8",
-      accent:       "#06b6d4",
-      success:      "#10b981",
-      warning:      "#f59e0b",
-      danger:       "#ef4444",
-      bg:           "#f8fafc",
-      card:         "#ffffff",
-      chatBg:       "#f1f5f9",
-      border:       "#e2e8f0",
-      borderLight:  "#f1f5f9",
-      textPrimary:  "#0f172a",
-      textSecondary:"#475569",
-      textMuted:    "#94a3b8",
-      userBubble:   "#4f46e5",
-      userText:     "#ffffff",
-      botBubble:    "#ffffff",
-      botText:      "#0f172a",
-      faqBadge:     "#e0e7ff",
-      faqText:      "#4f46e5",
+      accent: "#06b6d4",
+      success: "#10b981",
+      warning: "#f59e0b",
+      danger: "#ef4444",
+      bg: "#f8fafc",
+      card: "#ffffff",
+      chatBg: "#f1f5f9",
+      border: "#e2e8f0",
+      borderLight: "#f1f5f9",
+      textPrimary: "#0f172a",
+      textSecondary: "#475569",
+      textMuted: "#94a3b8",
+      userBubble: "#4f46e5",
+      userText: "#ffffff",
+      botBubble: "#ffffff",
+      botText: "#0f172a",
+      faqBadge: "#e0e7ff",
+      faqText: "#4f46e5",
     },
+    // ── Auto-Crawl defaults ──────────────────────────────────────
+    autoCrawl: false,
+    autoCrawlUrls: [],
+    autoCrawlMode: "append",
+    autoCrawlSaveToDb: true,
+    autoCrawlTTLHours: 24,
+    autoCrawlDeepLinks: false,
+    autoCrawlMaxPages: 10,
+    autoCrawlOnlyFAQPaths: false,
+    autoCrawlSilent: true,
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -76,12 +105,23 @@
   function mergeConfig(user) {
     var cfg = JSON.parse(JSON.stringify(DEFAULTS));
     if (!user) return cfg;
-    if (user.apiUrl)    cfg.apiUrl   = user.apiUrl.replace(/\/$/, "");
-    if (user.appId)     cfg.appId    = user.appId;
-    if (user.position)  cfg.position = user.position;
-    if (user.theme)     Object.assign(cfg.theme, user.theme);
-    if (user.bot)       Object.assign(cfg.bot, user.bot);
-    if (user.launcher)  Object.assign(cfg.launcher, user.launcher);
+    if (user.apiUrl) cfg.apiUrl = user.apiUrl.replace(/\/$/, "");
+    if (user.appId) cfg.appId = user.appId;
+    if (user.position) cfg.position = user.position;
+    if (user.theme) Object.assign(cfg.theme, user.theme);
+    if (user.bot) Object.assign(cfg.bot, user.bot);
+    if (user.launcher) Object.assign(cfg.launcher, user.launcher);
+
+    // Auto-crawl options
+    var acFields = [
+      "autoCrawl", "autoCrawlUrls", "autoCrawlMode", "autoCrawlSaveToDb",
+      "autoCrawlTTLHours", "autoCrawlDeepLinks", "autoCrawlMaxPages",
+      "autoCrawlOnlyFAQPaths", "autoCrawlSilent",
+    ];
+    acFields.forEach(function (f) {
+      if (user[f] !== undefined) cfg[f] = user[f];
+    });
+
     return cfg;
   }
 
@@ -106,7 +146,6 @@
     return d.innerHTML;
   }
 
-  // Matches original formatContent in MessageBubble.jsx
   function formatContent(text) {
     if (!text) return "";
     return sanitize(text)
@@ -114,7 +153,6 @@
       .replace(/\n/g, "<br>");
   }
 
-  // Session persistence — matches useChat.js exactly
   function getStorageKey(appId) { return "chatbot_session_" + appId; }
 
   function getOrCreateSessionId(appId) {
@@ -125,25 +163,329 @@
       var id = uuid();
       localStorage.setItem(key, id);
       return id;
-    } catch (e) {
-      return uuid();
-    }
+    } catch (e) { return uuid(); }
   }
 
   function persistSessionId(appId, id) {
-    try { localStorage.setItem(getStorageKey(appId), id); } catch (e) {}
+    try { localStorage.setItem(getStorageKey(appId), id); } catch (e) { }
   }
 
   // ─────────────────────────────────────────────────────────────
-  // API LAYER — mirrors utils/api.js exactly
+  // AUTO-CRAWL: TTL HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Returns a stable localStorage key for a given appId + URL pair.
+   * Safe base64-like encoding using btoa with fallback.
+   */
+  function crawlTTLKey(appId, url) {
+    var encoded;
+    try { encoded = btoa(url).slice(0, 24); } catch (e) { encoded = url.replace(/[^a-z0-9]/gi, "").slice(0, 24); }
+    return "cb_crawl_ttl_" + appId + "_" + encoded;
+  }
+
+  /**
+   * Returns true if the URL has not been crawled within autoCrawlTTLHours.
+   * Always returns true if TTLHours === 0 (force re-crawl).
+   */
+  function shouldCrawlUrl(cfg, url) {
+    if (!cfg.autoCrawlTTLHours || cfg.autoCrawlTTLHours <= 0) return true;
+    try {
+      var key = crawlTTLKey(cfg.appId, url);
+      var last = localStorage.getItem(key);
+      if (!last) return true;
+      var hoursSince = (Date.now() - parseInt(last, 10)) / 3600000;
+      return hoursSince >= cfg.autoCrawlTTLHours;
+    } catch (e) { return true; }
+  }
+
+  /**
+   * Stamps a URL as crawled-right-now in localStorage.
+   */
+  function markUrlCrawled(cfg, url) {
+    try {
+      var key = crawlTTLKey(cfg.appId, url);
+      localStorage.setItem(key, Date.now().toString());
+    } catch (e) { }
+  }
+
+  /**
+   * Clears all crawl TTL stamps for this appId.
+   * Exposed on the public API as chatbot.resetCrawlCache().
+   */
+  function clearCrawlTTLCache(appId) {
+    try {
+      var prefix = "cb_crawl_ttl_" + appId + "_";
+      Object.keys(localStorage).forEach(function (k) {
+        if (k.indexOf(prefix) === 0) localStorage.removeItem(k);
+      });
+    } catch (e) { }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // AUTO-CRAWL: CORE ENGINE
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Main auto-crawl entry point. Called once on chatbot boot.
+   *
+   * Flow:
+   *  1. Determine which URLs to crawl (cfg.autoCrawlUrls or current page).
+   *  2. If autoCrawlDeepLinks = true, call /api/admin/crawl/links on each
+   *     base URL and expand the list with discovered internal links.
+   *  3. Filter out already-crawled URLs (TTL check).
+   *  4. For each remaining URL, POST /api/admin/crawl/preview.
+   *  5. Deduplicate FAQ results.
+   *  6. If autoCrawlSaveToDb, POST /api/admin/crawl/save.
+   *     Otherwise inject into state.sessionFAQs for this session only.
+   *  7. Stamp all crawled URLs in TTL cache.
+   *  8. Update chatbot UI status indicator.
+   */
+  function autoSeedFAQs(state, els) {
+    var cfg = state.cfg;
+    var log = cfg.autoCrawlSilent
+      ? function () { }
+      : function (msg) { console.log("[ChatBot AutoCrawl]", msg); };
+
+    log("Starting auto-crawl...");
+
+    // ── 1. Determine base URLs ───────────────────────────────────
+    var baseUrls = Array.isArray(cfg.autoCrawlUrls) && cfg.autoCrawlUrls.length > 0
+      ? cfg.autoCrawlUrls.slice()
+      : [window.location.href];
+
+    log("Base URLs: " + baseUrls.join(", "));
+
+    // Show a subtle crawl indicator in header
+    setCrawlStatus(els, "indexing");
+
+    // ── 2. Expand with deep links if requested ───────────────────
+    var expandPromise;
+
+    if (cfg.autoCrawlDeepLinks) {
+      log("Deep-link mode: discovering internal links...");
+
+      expandPromise = Promise.all(
+        baseUrls.map(function (url) {
+          return fetch(cfg.apiUrl + "/api/admin/crawl/links", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: url }),
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (!data.links || !data.links.length) return [url];
+
+              var PRIORITY = /faq|help|support|question|knowledge/i;
+              var links = data.links;
+
+              if (cfg.autoCrawlOnlyFAQPaths) {
+                links = links.filter(function (l) { return PRIORITY.test(l.path); });
+              }
+
+              // Cap at autoCrawlMaxPages - 1 (leave room for the base URL)
+              var extra = links
+                .slice(0, cfg.autoCrawlMaxPages - 1)
+                .map(function (l) { return l.href; });
+
+              // Always include the original base URL too
+              return [url].concat(extra);
+            })
+            .catch(function () { return [url]; }); // fall back to just the base URL
+        })
+      ).then(function (arrays) {
+        // Flatten + deduplicate
+        var seen = {};
+        var flat = [];
+        arrays.forEach(function (arr) {
+          arr.forEach(function (u) {
+            if (!seen[u]) { seen[u] = true; flat.push(u); }
+          });
+        });
+        log("Expanded to " + flat.length + " URLs after deep-link discovery");
+        return flat;
+      });
+    } else {
+      expandPromise = Promise.resolve(baseUrls);
+    }
+
+    // ── 3–7. Crawl each URL, collect FAQs, save/inject ──────────
+    expandPromise
+      .then(function (allUrls) {
+        // Filter by TTL
+        var urlsToCrawl = allUrls.filter(function (u) { return shouldCrawlUrl(cfg, u); });
+
+        if (urlsToCrawl.length === 0) {
+          log("All URLs already crawled within TTL window. Skipping.");
+          setCrawlStatus(els, "cached");
+          return Promise.resolve([]);
+        }
+
+        log("Crawling " + urlsToCrawl.length + " URL(s)...");
+
+        var allFAQs = [];
+        var seenQuestions = {};
+
+        // Sequential crawl with polite delay
+        function crawlNext(idx) {
+          if (idx >= urlsToCrawl.length) return Promise.resolve();
+
+          var url = urlsToCrawl[idx];
+          log("Fetching: " + url);
+
+          return fetch(cfg.apiUrl + "/api/admin/crawl/preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: url }),
+          })
+            .then(function (r) {
+              if (!r.ok) return null;
+              return r.json();
+            })
+            .then(function (data) {
+              if (data && Array.isArray(data.faqs)) {
+                data.faqs.forEach(function (faq) {
+                  var key = faq.question.toLowerCase().slice(0, 80);
+                  if (!seenQuestions[key]) {
+                    seenQuestions[key] = true;
+                    allFAQs.push(faq);
+                  }
+                });
+                log("Got " + data.faqs.length + " FAQs from " + url);
+                markUrlCrawled(cfg, url);
+              }
+            })
+            .catch(function (err) {
+              log("Failed to crawl " + url + ": " + err.message);
+            })
+            .then(function () {
+              // 300ms polite delay between requests
+              return new Promise(function (resolve) { setTimeout(resolve, 300); });
+            })
+            .then(function () {
+              return crawlNext(idx + 1);
+            });
+        }
+
+        return crawlNext(0).then(function () { return allFAQs; });
+      })
+      .then(function (faqs) {
+        if (!faqs || faqs.length === 0) {
+          log("No FAQs extracted.");
+          setCrawlStatus(els, "none");
+          return;
+        }
+
+        log("Total unique FAQs extracted: " + faqs.length);
+
+        if (cfg.autoCrawlSaveToDb) {
+          // ── Save to Supabase ──────────────────────────────────
+          log("Saving " + faqs.length + " FAQs to database (mode: " + cfg.autoCrawlMode + ")...");
+          return fetch(cfg.apiUrl + "/api/admin/crawl/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ faqs: faqs, mode: cfg.autoCrawlMode }),
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              log("Saved! " + (data.message || ""));
+              setCrawlStatus(els, "done", faqs.length);
+
+              // Refresh the in-memory FAQ list so quick-reply buttons update
+              if (!state.userHasSent) {
+                loadInitialFAQs(state, els);
+              }
+            })
+            .catch(function (err) {
+              log("Save failed: " + err.message);
+              // Inject session-only as fallback
+              injectSessionFAQs(state, els, faqs);
+              setCrawlStatus(els, "session", faqs.length);
+            });
+        } else {
+          // ── Session-only injection ────────────────────────────
+          injectSessionFAQs(state, els, faqs);
+          setCrawlStatus(els, "session", faqs.length);
+        }
+      })
+      .catch(function (err) {
+        log("Auto-crawl error: " + err.message);
+        setCrawlStatus(els, "error");
+      });
+  }
+
+  /**
+   * Inject FAQs directly into state for this session only (no DB write).
+   * Merges with any existing FAQs already loaded from the server.
+   */
+  function injectSessionFAQs(state, els, faqs) {
+    var seen = {};
+    var existing = state.allFaqs || [];
+    existing.forEach(function (f) { seen[f.question.toLowerCase().slice(0, 80)] = true; });
+
+    var newOnes = faqs.filter(function (f) {
+      var k = f.question.toLowerCase().slice(0, 80);
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    });
+
+    state.allFaqs = existing.concat(newOnes);
+    state.sessionFAQs = faqs;
+
+    // Refresh quick-reply buttons if user hasn't sent yet
+    if (!state.userHasSent) {
+      renderQuickReplies(state, els, state.allFaqs, "💡 Common Questions");
+    }
+  }
+
+  /**
+   * Show a subtle crawl status pill in the chat header.
+   * status: 'indexing' | 'done' | 'session' | 'cached' | 'none' | 'error'
+   */
+  function setCrawlStatus(els, status, count) {
+    var indicator = els.root.querySelector(".cb-crawl-indicator");
+    if (!indicator) return;
+
+    var map = {
+      indexing: { text: "🔍 Indexing page…", color: "#fef3c7", textColor: "#92400e" },
+      done: { text: "✅ " + (count || 0) + " FAQs indexed", color: "#d1fae5", textColor: "#065f46" },
+      session: { text: "💡 " + (count || 0) + " FAQs loaded", color: "#e0e7ff", textColor: "#3730a3" },
+      cached: { text: "✅ FAQs cached", color: "#d1fae5", textColor: "#065f46" },
+      none: { text: "", color: "", textColor: "" },
+      error: { text: "", color: "", textColor: "" },
+    };
+
+    var info = map[status] || map["none"];
+    if (!info.text) {
+      indicator.style.display = "none";
+      return;
+    }
+
+    indicator.style.display = "inline-flex";
+    indicator.textContent = info.text;
+    indicator.style.background = info.color;
+    indicator.style.color = info.textColor;
+
+    // Auto-hide "done" / "session" after 4 seconds
+    if (status === "done" || status === "session" || status === "cached") {
+      setTimeout(function () {
+        indicator.style.opacity = "0";
+        setTimeout(function () { indicator.style.display = "none"; indicator.style.opacity = "1"; }, 600);
+      }, 4000);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // API LAYER
   // ─────────────────────────────────────────────────────────────
   function makeApi(cfg) {
     function apiFetch(path, opts) {
       opts = opts || {};
       return fetch(cfg.apiUrl + path, {
         headers: Object.assign({ "Content-Type": "application/json" }, opts.headers || {}),
-        method:  opts.method || "GET",
-        body:    opts.body,
+        method: opts.method || "GET",
+        body: opts.body,
       }).then(function (r) {
         return r.json().then(function (data) {
           if (!r.ok) throw new Error(data.error || "HTTP " + r.status);
@@ -153,32 +495,27 @@
     }
 
     return {
-      // GET /api/chat/history — restore session on open (useChat.js restoreHistory)
       fetchHistory: function (sessionId, appId) {
         return apiFetch(
           "/api/chat/history?sessionId=" + encodeURIComponent(sessionId) +
           "&appId=" + encodeURIComponent(appId)
         );
       },
-      // POST /api/chat — send message (useChat.js sendMessage)
       sendMessage: function (message, sessionId, appId, conversationHistory) {
         return apiFetch("/api/chat", {
           method: "POST",
           body: JSON.stringify({ message: message, sessionId: sessionId, appId: appId, conversationHistory: conversationHistory }),
         });
       },
-      // GET /api/chat/faqs — initial quick-reply buttons (QuickReplies.jsx)
       fetchFAQs: function () {
         return apiFetch("/api/chat/faqs");
       },
-      // DELETE /api/chat/history — clear session (useChat.js clearMessages)
       clearHistory: function (sessionId) {
         return apiFetch("/api/chat/history", {
           method: "DELETE",
           body: JSON.stringify({ sessionId: sessionId }),
         });
       },
-      // POST /api/escalate — submit escalation (EscalationModal.jsx)
       escalate: function (payload) {
         return apiFetch("/api/escalate", {
           method: "POST",
@@ -189,42 +526,40 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // INJECT STYLES — all from global.css + ChatWidget.css +
-  //                 ChatBody.css + EscalationModal.css
+  // INJECT STYLES
   // ─────────────────────────────────────────────────────────────
   function injectStyles(cfg) {
     if (document.getElementById("cb-styles")) return;
     var t = cfg.theme;
     var isLeft = cfg.position === "bottom-left";
     var launcherPos = isLeft ? "left:28px;" : "right:28px;";
-    var windowPos   = isLeft ? "left:28px;" : "right:28px;";
+    var windowPos = isLeft ? "left:28px;" : "right:28px;";
 
     var css = [
       "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');",
 
-      /* CSS Variables — matches global.css exactly */
       ":root{",
-      "--cb-primary:"        + t.primary        + ";",
-      "--cb-primary-dark:"   + t.primaryDark    + ";",
-      "--cb-primary-light:"  + t.primaryLight   + ";",
-      "--cb-accent:"         + t.accent         + ";",
-      "--cb-success:"        + t.success        + ";",
-      "--cb-warning:"        + t.warning        + ";",
-      "--cb-danger:"         + t.danger         + ";",
-      "--cb-bg:"             + t.bg             + ";",
-      "--cb-card:"           + t.card           + ";",
-      "--cb-chat-bg:"        + t.chatBg         + ";",
-      "--cb-border:"         + t.border         + ";",
-      "--cb-border-light:"   + t.borderLight    + ";",
-      "--cb-text:"           + t.textPrimary    + ";",
-      "--cb-text-secondary:" + t.textSecondary  + ";",
-      "--cb-muted:"          + t.textMuted      + ";",
-      "--cb-user-bubble:"    + t.userBubble     + ";",
-      "--cb-user-text:"      + t.userText       + ";",
-      "--cb-bot-bubble:"     + t.botBubble      + ";",
-      "--cb-bot-text:"       + t.botText        + ";",
-      "--cb-faq-badge:"      + t.faqBadge       + ";",
-      "--cb-faq-text:"       + t.faqText        + ";",
+      "--cb-primary:" + t.primary + ";",
+      "--cb-primary-dark:" + t.primaryDark + ";",
+      "--cb-primary-light:" + t.primaryLight + ";",
+      "--cb-accent:" + t.accent + ";",
+      "--cb-success:" + t.success + ";",
+      "--cb-warning:" + t.warning + ";",
+      "--cb-danger:" + t.danger + ";",
+      "--cb-bg:" + t.bg + ";",
+      "--cb-card:" + t.card + ";",
+      "--cb-chat-bg:" + t.chatBg + ";",
+      "--cb-border:" + t.border + ";",
+      "--cb-border-light:" + t.borderLight + ";",
+      "--cb-text:" + t.textPrimary + ";",
+      "--cb-text-secondary:" + t.textSecondary + ";",
+      "--cb-muted:" + t.textMuted + ";",
+      "--cb-user-bubble:" + t.userBubble + ";",
+      "--cb-user-text:" + t.userText + ";",
+      "--cb-bot-bubble:" + t.botBubble + ";",
+      "--cb-bot-text:" + t.botText + ";",
+      "--cb-faq-badge:" + t.faqBadge + ";",
+      "--cb-faq-text:" + t.faqText + ";",
       "--cb-font:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;",
       "--cb-mono:'JetBrains Mono','Courier New',monospace;",
       "--cb-r-sm:6px;--cb-r-md:12px;--cb-r-lg:16px;--cb-r-xl:24px;--cb-r-full:9999px;",
@@ -235,11 +570,10 @@
       "--cb-tr-fast:150ms ease;--cb-tr-base:250ms ease;",
       "}",
 
-      /* Reset scoped to chatbot elements */
       "#cb-launcher,#cb-root,#cb-modal,",
       "#cb-launcher *,#cb-root *,#cb-modal *{box-sizing:border-box;margin:0;padding:0;font-family:var(--cb-font);}",
 
-      /* ── LAUNCHER — matches ChatWidget.css .chat-launcher ── */
+      /* LAUNCHER */
       "#cb-launcher{",
       "position:fixed;bottom:28px;" + launcherPos,
       "width:" + cfg.launcher.size + "px;height:" + cfg.launcher.size + "px;",
@@ -254,7 +588,7 @@
       "#cb-launcher:active{transform:scale(.96);}",
       "#cb-launcher svg{width:26px;height:26px;transition:transform var(--cb-tr-base);}",
 
-      /* ── CHAT WINDOW — matches ChatWidget.css .chat-window ── */
+      /* CHAT WINDOW */
       "#cb-root{",
       "position:fixed;bottom:100px;" + windowPos,
       "width:390px;height:580px;",
@@ -264,7 +598,7 @@
       "z-index:1000;animation:cb-pop .35s cubic-bezier(.34,1.56,.64,1);}",
       "#cb-root.cb-hidden{display:none;}",
 
-      /* ── HEADER — matches ChatWidget.css .chat-header ── */
+      /* HEADER */
       ".cb-header{",
       "background:linear-gradient(135deg,var(--cb-primary) 0%,var(--cb-primary-dark) 100%);",
       "padding:16px 24px;display:flex;align-items:center;gap:16px;",
@@ -283,7 +617,16 @@
       ".cb-status-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;",
       "box-shadow:0 0 0 2px rgba(74,222,128,.3);animation:cb-pulse 2s infinite;flex-shrink:0;}",
 
-      /* Header buttons — matches .btn-escalate-header */
+      /* Crawl indicator pill — NEW */
+      ".cb-crawl-indicator{",
+      "display:none;align-items:center;gap:4px;",
+      "padding:2px 8px;border-radius:var(--cb-r-full);",
+      "font-size:10px;font-weight:600;letter-spacing:.02em;",
+      "position:absolute;bottom:6px;left:72px;",
+      "transition:opacity 0.6s ease;white-space:nowrap;",
+      "z-index:2;}",
+
+      /* Header buttons */
       ".cb-header-btn{padding:4px 8px;border-radius:var(--cb-r-full);",
       "background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:600;",
       "border:1px solid rgba(255,255,255,.25);cursor:pointer;",
@@ -297,23 +640,21 @@
       ".cb-close-btn:hover{background:rgba(255,255,255,.25);}",
       ".cb-close-btn svg{width:16px;height:16px;}",
 
-      /* ── MESSAGES — matches ChatBody.css .chat-messages ── */
+      /* MESSAGES */
       ".cb-messages{flex:1;overflow-y:auto;padding:16px;",
       "display:flex;flex-direction:column;gap:16px;",
       "background:var(--cb-chat-bg);scroll-behavior:smooth;}",
       ".cb-messages::-webkit-scrollbar{width:6px;}",
       ".cb-messages::-webkit-scrollbar-thumb{background:var(--cb-border);border-radius:var(--cb-r-full);}",
 
-      /* Welcome — matches .chat-welcome */
       ".cb-welcome{text-align:center;padding:16px;animation:cb-fadeIn .5s ease;}",
       ".cb-welcome-emoji{font-size:42px;display:block;margin-bottom:8px;}",
       ".cb-welcome-title{font-size:18px;font-weight:700;color:var(--cb-text);margin-bottom:4px;}",
       ".cb-welcome-sub{font-size:13px;color:var(--cb-muted);line-height:1.5;}",
 
-      /* Restored banner */
       ".cb-restored-banner{text-align:center;font-size:11px;color:var(--cb-muted);padding:4px 0 8px;}",
 
-      /* ── MESSAGE ROWS — matches .message-row ── */
+      /* MESSAGE ROWS */
       ".cb-msg-row{display:flex;gap:8px;animation:cb-slideUp .3s ease;}",
       ".cb-msg-row.user{flex-direction:row-reverse;}",
       ".cb-msg-avatar{width:30px;height:30px;border-radius:var(--cb-r-full);",
@@ -323,14 +664,12 @@
       ".cb-msg-wrap{max-width:80%;display:flex;flex-direction:column;gap:4px;}",
       ".cb-msg-row.user .cb-msg-wrap{align-items:flex-end;}",
 
-      /* Source badge — matches .message-source-badge */
       ".cb-src-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;",
       "border-radius:var(--cb-r-full);font-size:10px;font-weight:600;",
       "letter-spacing:.02em;text-transform:uppercase;align-self:flex-start;}",
       ".cb-src-badge.faq{background:var(--cb-faq-badge);color:var(--cb-faq-text);}",
       ".cb-src-badge.ai{background:#d1fae5;color:#065f46;}",
 
-      /* Bubbles — matches .message-bubble */
       ".cb-bubble{padding:8px 16px;border-radius:var(--cb-r-lg);",
       "font-size:14px;line-height:1.6;word-break:break-word;}",
       ".cb-bubble.user{background:var(--cb-user-bubble);color:var(--cb-user-text);border-bottom-right-radius:var(--cb-r-sm);}",
@@ -340,7 +679,7 @@
       ".cb-bubble.bot strong{font-weight:600;color:var(--cb-primary-dark);}",
       ".cb-time{font-size:10px;color:var(--cb-muted);padding:0 4px;}",
 
-      /* ── TYPING — matches .typing-indicator ── */
+      /* TYPING */
       ".cb-typing{display:flex;align-items:center;gap:8px;animation:cb-fadeIn .3s ease;}",
       ".cb-typing-dots{display:flex;gap:4px;padding:8px 16px;",
       "background:var(--cb-bot-bubble);border-radius:var(--cb-r-lg);border-bottom-left-radius:var(--cb-r-sm);",
@@ -350,7 +689,7 @@
       ".cb-typing-dots span:nth-child(2){animation-delay:.2s;}",
       ".cb-typing-dots span:nth-child(3){animation-delay:.4s;}",
 
-      /* ── QUICK REPLIES — matches .quick-replies ── */
+      /* QUICK REPLIES */
       ".cb-quick{padding:8px 16px;border-top:1px solid var(--cb-border-light);",
       "background:var(--cb-card);flex-shrink:0;}",
       ".cb-quick-label{font-size:11px;font-weight:600;color:var(--cb-muted);",
@@ -364,7 +703,7 @@
       ".cb-quick-btn:hover{background:var(--cb-primary);color:#fff;",
       "border-color:var(--cb-primary);transform:translateY(-1px);}",
 
-      /* ── INPUT BAR — matches .chat-input-bar ── */
+      /* INPUT BAR */
       ".cb-input-bar{padding:8px 16px;border-top:1px solid var(--cb-border);",
       "background:var(--cb-card);flex-shrink:0;}",
       ".cb-input-form{display:flex;align-items:flex-end;gap:8px;",
@@ -385,7 +724,7 @@
       ".cb-send-btn:disabled{background:var(--cb-border);cursor:not-allowed;}",
       ".cb-send-btn svg{width:16px;height:16px;}",
 
-      /* ── ESCALATION MODAL — matches EscalationModal.css ── */
+      /* ESCALATION MODAL */
       "#cb-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);",
       "backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;",
       "z-index:1100;padding:16px;animation:cb-fadeIn .2s ease;}",
@@ -395,7 +734,6 @@
       "width:100%;max-width:420px;box-shadow:var(--cb-shadow-xl);overflow:hidden;",
       "animation:cb-pop .3s cubic-bezier(.34,1.56,.64,1);}",
 
-      /* Modal header */
       ".cb-modal-hd{background:linear-gradient(135deg,var(--cb-primary),var(--cb-primary-dark));",
       "padding:24px 28px;color:#fff;position:relative;overflow:hidden;}",
       ".cb-modal-hd::before{content:'';position:absolute;top:-30px;right:-20px;",
@@ -406,7 +744,6 @@
       ".cb-modal-title{font-size:20px;font-weight:700;letter-spacing:-.02em;}",
       ".cb-modal-sub{font-size:13px;color:rgba(255,255,255,.75);margin-top:4px;}",
 
-      /* Modal body / form — matches EscalationModal.css form styles */
       ".cb-modal-body{padding:24px 28px;}",
       ".cb-submit-err{padding:8px 16px;background:#fef2f2;border:1px solid #fecaca;",
       "border-radius:var(--cb-r-md);color:var(--cb-danger);font-size:13px;",
@@ -425,7 +762,6 @@
       ".cb-form-textarea{resize:vertical;min-height:80px;line-height:1.5;}",
       ".cb-field-err{font-size:12px;color:var(--cb-danger);margin-top:4px;display:none;}",
 
-      /* Modal buttons — matches .btn styles */
       ".cb-modal-actions{display:flex;gap:8px;margin-top:16px;}",
       ".cb-btn{flex:1;padding:8px 16px;border-radius:var(--cb-r-md);",
       "font-size:14px;font-weight:600;cursor:pointer;border:none;",
@@ -439,11 +775,9 @@
       "border:1.5px solid var(--cb-border);}",
       ".cb-btn-secondary:hover:not(:disabled){background:var(--cb-border-light);}",
 
-      /* Spinner — matches .spinner */
       ".cb-spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);",
       "border-top-color:#fff;border-radius:50%;animation:cb-spin .8s linear infinite;}",
 
-      /* Success state — matches .modal__success */
       ".cb-modal-success{text-align:center;padding:28px;}",
       ".cb-success-icon{font-size:48px;display:block;margin-bottom:16px;animation:cb-bounce .6s ease;}",
       ".cb-success-title{font-size:20px;font-weight:700;color:var(--cb-text);margin-bottom:8px;}",
@@ -452,7 +786,7 @@
       "color:var(--cb-primary);border-radius:var(--cb-r-sm);",
       "font-family:var(--cb-mono);font-size:12px;font-weight:600;margin-top:8px;}",
 
-      /* ── KEYFRAMES — matches global.css animations ── */
+      /* KEYFRAMES */
       "@keyframes cb-fadeIn{from{opacity:0;}to{opacity:1;}}",
       "@keyframes cb-slideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}",
       "@keyframes cb-slideDown{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}",
@@ -461,7 +795,7 @@
       "@keyframes cb-bounce{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-8px);}}",
       "@keyframes cb-spin{to{transform:rotate(360deg);}}",
 
-      /* ── MOBILE — matches ChatWidget.css @media (max-width: 480px) ── */
+      /* MOBILE */
       "@media(max-width:480px){",
       "#cb-root{width:100%!important;height:100%!important;bottom:0!important;",
       "right:0!important;left:0!important;border-radius:0!important;}",
@@ -478,15 +812,14 @@
   // ─────────────────────────────────────────────────────────────
   // SVG ICONS
   // ─────────────────────────────────────────────────────────────
-  var ICON_CHAT  = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>';
+  var ICON_CHAT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>';
   var ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
-  var ICON_SEND  = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+  var ICON_SEND = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
 
   // ─────────────────────────────────────────────────────────────
-  // BUILD DOM — mirrors ChatWindow.jsx + ChatWidget.jsx structure
+  // BUILD DOM
   // ─────────────────────────────────────────────────────────────
   function buildDOM(cfg) {
-    // Launcher button
     var launcher = document.createElement("button");
     launcher.id = "cb-launcher";
     launcher.setAttribute("aria-label", "Open chat");
@@ -494,98 +827,90 @@
     launcher.innerHTML = ICON_CHAT;
     document.body.appendChild(launcher);
 
-    // Chat window
     var root = document.createElement("div");
     root.id = "cb-root";
     root.className = "cb-hidden";
     root.setAttribute("role", "dialog");
     root.setAttribute("aria-label", "Customer Support Chat");
     root.innerHTML = [
-      // Header
       '<div class="cb-header">',
-        '<div class="cb-avatar" aria-hidden="true">' + sanitize(cfg.bot.avatar) + '</div>',
-        '<div class="cb-header-info">',
-          '<div class="cb-header-name">' + sanitize(cfg.bot.name) + '</div>',
-          '<div class="cb-header-status">',
-            '<span class="cb-status-dot" aria-hidden="true"></span>',
-            '<span class="cb-status-text">' + sanitize(cfg.bot.status) + '</span>',
-          '</div>',
-        '</div>',
-        // New chat button — hidden until user sends first message (matches ChatWindow.jsx)
-        '<button class="cb-header-btn cb-new-btn" style="display:none" aria-label="Start a new chat" title="Clear history and start fresh">🔄 New</button>',
-        // Human escalation button
-        '<button class="cb-header-btn cb-human-btn" aria-label="Talk to a human agent">👤 Human</button>',
-        // Close button
-        '<button class="cb-close-btn" aria-label="Close chat">' + ICON_CLOSE + '</button>',
+      '<div class="cb-avatar" aria-hidden="true">' + sanitize(cfg.bot.avatar) + '</div>',
+      '<div class="cb-header-info">',
+      '<div class="cb-header-name">' + sanitize(cfg.bot.name) + '</div>',
+      '<div class="cb-header-status">',
+      '<span class="cb-status-dot" aria-hidden="true"></span>',
+      '<span class="cb-status-text">' + sanitize(cfg.bot.status) + '</span>',
       '</div>',
-      // Messages
+      '</div>',
+      // NEW: crawl indicator pill
+      '<span class="cb-crawl-indicator"></span>',
+      '<button class="cb-header-btn cb-new-btn" style="display:none" aria-label="Start a new chat" title="Clear history and start fresh">🔄 New</button>',
+      '<button class="cb-header-btn cb-human-btn" aria-label="Talk to a human agent">👤 Human</button>',
+      '<button class="cb-close-btn" aria-label="Close chat">' + ICON_CLOSE + '</button>',
+      '</div>',
       '<div class="cb-messages" role="log" aria-live="polite" aria-label="Chat messages">',
-        // Welcome screen (matches ChatWindow.jsx welcome)
-        '<div class="cb-welcome">',
-          '<span class="cb-welcome-emoji">👋</span>',
-          '<h3 class="cb-welcome-title">Hello! How can I help?</h3>',
-          '<p class="cb-welcome-sub">Ask me anything, or choose a common question below.<br>I\'m here to help 24/7!</p>',
-        '</div>',
+      '<div class="cb-welcome">',
+      '<span class="cb-welcome-emoji">👋</span>',
+      '<h3 class="cb-welcome-title">Hello! How can I help?</h3>',
+      '<p class="cb-welcome-sub">Ask me anything, or choose a common question below.<br>I\'m here to help 24/7!</p>',
       '</div>',
-      // Quick replies (initially hidden — shown after FAQ fetch)
+      '</div>',
       '<div class="cb-quick" style="display:none">',
-        '<p class="cb-quick-label">💡 Common Questions</p>',
-        '<div class="cb-quick-list"></div>',
+      '<p class="cb-quick-label">💡 Common Questions</p>',
+      '<div class="cb-quick-list"></div>',
       '</div>',
-      // Input bar
       '<div class="cb-input-bar">',
-        '<div class="cb-input-form">',
-          '<textarea class="cb-textarea" placeholder="Type a message…" rows="1" aria-label="Type your message"></textarea>',
-          '<button class="cb-send-btn" disabled aria-label="Send message">' + ICON_SEND + '</button>',
-        '</div>',
+      '<div class="cb-input-form">',
+      '<textarea class="cb-textarea" placeholder="Type a message…" rows="1" aria-label="Type your message"></textarea>',
+      '<button class="cb-send-btn" disabled aria-label="Send message">' + ICON_SEND + '</button>',
+      '</div>',
       '</div>',
     ].join("");
     document.body.appendChild(root);
 
-    // Escalation modal (matches EscalationModal.jsx)
     var modal = document.createElement("div");
     modal.id = "cb-modal";
     modal.className = "cb-hidden";
     modal.innerHTML = [
       '<div class="cb-modal-card">',
-        '<div class="cb-modal-hd">',
-          '<div class="cb-modal-hd-icon">👤</div>',
-          '<div class="cb-modal-title">Talk to a Human</div>',
-          '<div class="cb-modal-sub">Our team will contact you within 24 hours</div>',
-        '</div>',
-        '<div class="cb-modal-body">',
-          '<div class="cb-submit-err"></div>',
-          '<div class="cb-form-group">',
-            '<label class="cb-form-label">Full Name <span>*</span></label>',
-            '<input class="cb-form-input cb-esc-name" type="text" placeholder="Jane Smith" autocomplete="name">',
-            '<div class="cb-field-err cb-err-name"></div>',
-          '</div>',
-          '<div class="cb-form-group">',
-            '<label class="cb-form-label">Email Address <span>*</span></label>',
-            '<input class="cb-form-input cb-esc-email" type="email" placeholder="jane@company.com" autocomplete="email">',
-            '<div class="cb-field-err cb-err-email"></div>',
-          '</div>',
-          '<div class="cb-form-group">',
-            '<label class="cb-form-label">Describe your issue</label>',
-            '<textarea class="cb-form-textarea cb-esc-issue" placeholder="What can we help you with? The more detail, the better." rows="3"></textarea>',
-          '</div>',
-          '<div class="cb-modal-actions">',
-            '<button class="cb-btn cb-btn-secondary cb-modal-cancel">Cancel</button>',
-            '<button class="cb-btn cb-btn-primary cb-modal-submit">📨 Submit Request</button>',
-          '</div>',
-        '</div>',
+      '<div class="cb-modal-hd">',
+      '<div class="cb-modal-hd-icon">👤</div>',
+      '<div class="cb-modal-title">Talk to a Human</div>',
+      '<div class="cb-modal-sub">Our team will contact you within 24 hours</div>',
+      '</div>',
+      '<div class="cb-modal-body">',
+      '<div class="cb-submit-err"></div>',
+      '<div class="cb-form-group">',
+      '<label class="cb-form-label">Full Name <span>*</span></label>',
+      '<input class="cb-form-input cb-esc-name" type="text" placeholder="Jane Smith" autocomplete="name">',
+      '<div class="cb-field-err cb-err-name"></div>',
+      '</div>',
+      '<div class="cb-form-group">',
+      '<label class="cb-form-label">Email Address <span>*</span></label>',
+      '<input class="cb-form-input cb-esc-email" type="email" placeholder="jane@company.com" autocomplete="email">',
+      '<div class="cb-field-err cb-err-email"></div>',
+      '</div>',
+      '<div class="cb-form-group">',
+      '<label class="cb-form-label">Describe your issue</label>',
+      '<textarea class="cb-form-textarea cb-esc-issue" placeholder="What can we help you with? The more detail, the better." rows="3"></textarea>',
+      '</div>',
+      '<div class="cb-modal-actions">',
+      '<button class="cb-btn cb-btn-secondary cb-modal-cancel">Cancel</button>',
+      '<button class="cb-btn cb-btn-primary cb-modal-submit">📨 Submit Request</button>',
+      '</div>',
+      '</div>',
       '</div>',
     ].join("");
     document.body.appendChild(modal);
 
     return {
       launcher: launcher,
-      root:     root,
-      modal:    modal,
+      root: root,
+      modal: modal,
       messages: root.querySelector(".cb-messages"),
       textarea: root.querySelector(".cb-textarea"),
-      sendBtn:  root.querySelector(".cb-send-btn"),
-      newBtn:   root.querySelector(".cb-new-btn"),
+      sendBtn: root.querySelector(".cb-send-btn"),
+      newBtn: root.querySelector(".cb-new-btn"),
       humanBtn: root.querySelector(".cb-human-btn"),
       closeBtn: root.querySelector(".cb-close-btn"),
       quickWrap: root.querySelector(".cb-quick"),
@@ -594,22 +919,24 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // STATE — mirrors useChat.js state shape exactly
+  // STATE
   // ─────────────────────────────────────────────────────────────
   function createState(cfg) {
     return {
-      cfg:                cfg,
-      api:                makeApi(cfg),
-      sessionId:          getOrCreateSessionId(cfg.appId),
-      messages:           [],
-      conversationHistory: [],  // for AI context (last 10)
-      suggestions:        [],
-      allFaqs:            [],   // full FAQ list for initial buttons
-      isTyping:           false,
-      isLoading:          false,
-      isOpen:             false,
-      historyLoaded:      false,
-      userHasSent:        false, // controls "New" button + quick-reply mode
+      cfg: cfg,
+      api: makeApi(cfg),
+      sessionId: getOrCreateSessionId(cfg.appId),
+      messages: [],
+      conversationHistory: [],
+      suggestions: [],
+      allFaqs: [],
+      sessionFAQs: [],      // FAQs injected by auto-crawl (session-only mode)
+      isTyping: false,
+      isLoading: false,
+      isOpen: false,
+      historyLoaded: false,
+      userHasSent: false,
+      autoCrawlDone: false, // prevent double-crawl
     };
   }
 
@@ -625,7 +952,6 @@
     if (el) el.textContent = text;
   }
 
-  // Render one message row — mirrors MessageBubble.jsx exactly
   function renderMsgRow(state, msg) {
     var isUser = msg.role === "user";
     var row = document.createElement("div");
@@ -634,25 +960,20 @@
 
     var html = "";
     if (!isUser) {
-      // Bot avatar
       html += '<div class="cb-msg-avatar" aria-hidden="true">' + sanitize(state.cfg.bot.avatar) + '</div>';
     }
     html += '<div class="cb-msg-wrap">';
 
-    // Source badge (FAQ / AI) — matches message-source-badge
     if (!isUser && msg.source) {
       html += '<span class="cb-src-badge ' + msg.source + '">';
       html += (msg.source === "faq" ? "📚 FAQ" : "✨ AI");
       html += '</span>';
     }
 
-    // Bubble
     html += '<div class="cb-bubble ' + (isUser ? "user" : "bot") + '"';
     html += ' aria-label="' + (isUser ? "You" : "Bot") + ': ' + sanitize(msg.content) + '">';
     html += formatContent(msg.content);
     html += '</div>';
-
-    // Timestamp
     html += '<span class="cb-time">' + fmtTime(msg.timestamp) + '</span>';
     html += '</div>';
 
@@ -682,7 +1003,6 @@
     if (el) el.remove();
   }
 
-  // Render quick replies — matches QuickReplies.jsx both modes
   function renderQuickReplies(state, els, faqs, label) {
     if (!faqs || faqs.length === 0) {
       els.quickWrap.style.display = "none";
@@ -708,7 +1028,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // LOAD HISTORY — mirrors useChat.js restoreHistory()
+  // LOAD HISTORY
   // ─────────────────────────────────────────────────────────────
   function loadHistory(state, els) {
     if (state.historyLoaded) return;
@@ -722,11 +1042,9 @@
         state.isLoading = false;
 
         if (saved.length > 0) {
-          // Remove welcome screen
           var welcome = els.messages.querySelector(".cb-welcome");
           if (welcome) welcome.remove();
 
-          // Show restored banner (matches ChatWindow.jsx)
           var banner = document.createElement("div");
           banner.className = "cb-restored-banner";
           banner.textContent = "💬 Your previous conversation has been restored";
@@ -735,27 +1053,23 @@
           saved.forEach(function (msg) {
             state.messages.push(msg);
             state.conversationHistory.push({
-              role:    msg.role === "bot" ? "assistant" : "user",
+              role: msg.role === "bot" ? "assistant" : "user",
               content: msg.content,
             });
             appendMsg(state, els, msg);
           });
 
           state.userHasSent = saved.some(function (m) { return m.role === "user"; });
-          if (state.userHasSent) {
-            els.newBtn.style.display = "flex";
-          }
+          if (state.userHasSent) els.newBtn.style.display = "flex";
         }
 
         setStatusText(els, state.cfg.bot.status);
 
-        // Load FAQ buttons only for fresh sessions (matches QuickReplies.jsx useEffect)
         if (!state.userHasSent) {
           loadInitialFAQs(state, els);
         }
       })
-      .catch(function (err) {
-        console.warn("[ChatBot] Could not restore history:", err.message);
+      .catch(function () {
         state.isLoading = false;
         setStatusText(els, state.cfg.bot.status);
         loadInitialFAQs(state, els);
@@ -766,23 +1080,32 @@
     state.api.fetchFAQs()
       .then(function (data) {
         var list = Array.isArray(data.faqs) ? data.faqs : (Array.isArray(data) ? data : []);
+
+        // Merge with any session FAQs already loaded by auto-crawl
+        if (state.sessionFAQs && state.sessionFAQs.length > 0) {
+          var seen = {};
+          list.forEach(function (f) { seen[f.question.toLowerCase().slice(0, 80)] = true; });
+          state.sessionFAQs.forEach(function (f) {
+            var k = f.question.toLowerCase().slice(0, 80);
+            if (!seen[k]) { seen[k] = true; list.push(f); }
+          });
+        }
+
         state.allFaqs = list;
-        // Only show if user hasn't sent yet (matches QuickReplies.jsx showInitial logic)
         if (!state.userHasSent) {
           renderQuickReplies(state, els, list, "💡 Common Questions");
         }
       })
-      .catch(function () {});
+      .catch(function () { });
   }
 
   // ─────────────────────────────────────────────────────────────
-  // SEND MESSAGE — mirrors useChat.js sendMessage() exactly
+  // SEND MESSAGE
   // ─────────────────────────────────────────────────────────────
   function sendMessage(state, els, text) {
     if (!text || !text.trim() || state.isTyping || state.isLoading) return;
     text = text.trim();
 
-    // Remove welcome screen, hide quick replies, show New button
     var welcome = els.messages.querySelector(".cb-welcome");
     if (welcome) welcome.remove();
     hideQuickReplies(els);
@@ -790,19 +1113,17 @@
     state.userHasSent = true;
     els.newBtn.style.display = "flex";
 
-    // Optimistic user message (matches useChat.js)
     var userMsg = {
-      id:        Date.now() + "-" + Math.random().toString(36).slice(2, 6),
-      role:      "user",
-      content:   text,
-      source:    null,
+      id: Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+      role: "user",
+      content: text,
+      source: null,
       timestamp: new Date().toISOString(),
     };
     state.messages.push(userMsg);
     state.conversationHistory.push({ role: "user", content: text });
     appendMsg(state, els, userMsg);
 
-    // Lock UI
     state.isTyping = true;
     els.textarea.disabled = true;
     els.sendBtn.disabled = true;
@@ -818,20 +1139,18 @@
       .then(function (data) {
         hideTyping(els);
 
-        // Bot message — matches useChat.js botMsg shape
         var botMsg = {
-          id:          data.messageId || (Date.now() + "-b-" + Math.random().toString(36).slice(2, 6)),
-          role:        "bot",
-          content:     data.reply,
-          source:      data.source,
+          id: data.messageId || (Date.now() + "-b-" + Math.random().toString(36).slice(2, 6)),
+          role: "bot",
+          content: data.reply,
+          source: data.source,
           faqQuestion: data.faqQuestion,
-          timestamp:   data.timestamp || new Date().toISOString(),
+          timestamp: data.timestamp || new Date().toISOString(),
         };
         state.messages.push(botMsg);
         state.conversationHistory.push({ role: "assistant", content: data.reply });
         appendMsg(state, els, botMsg);
 
-        // Contextual suggestions after reply (matches QuickReplies.jsx contextual mode)
         if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
           state.suggestions = data.suggestions;
           renderQuickReplies(state, els, data.suggestions, "🔗 You might also want to know");
@@ -842,10 +1161,10 @@
       .catch(function () {
         hideTyping(els);
         var errMsg = {
-          id:        Date.now() + "-err",
-          role:      "bot",
-          content:   "⚠️ Sorry, I couldn't process your request. Please try again or click \"Talk to Human\" for help.",
-          source:    null,
+          id: Date.now() + "-err",
+          role: "bot",
+          content: "⚠️ Sorry, I couldn't process your request. Please try again or click \"Talk to Human\" for help.",
+          source: null,
           timestamp: new Date().toISOString(),
         };
         state.messages.push(errMsg);
@@ -861,76 +1180,66 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // NEW CHAT — mirrors useChat.js clearMessages() exactly
+  // NEW CHAT
   // ─────────────────────────────────────────────────────────────
   function newChat(state, els) {
-    // Tell backend to clear remote history
-    state.api.clearHistory(state.sessionId).catch(function () {});
+    state.api.clearHistory(state.sessionId).catch(function () { });
 
-    // Generate new sessionId and persist it (matches useChat.js)
     var newId = uuid();
     state.sessionId = newId;
     persistSessionId(state.cfg.appId, newId);
 
-    // Reset all state
     state.messages = [];
     state.conversationHistory = [];
     state.suggestions = [];
     state.userHasSent = false;
 
-    // Reset DOM
     els.messages.innerHTML = [
       '<div class="cb-welcome">',
-        '<span class="cb-welcome-emoji">👋</span>',
-        '<h3 class="cb-welcome-title">Hello! How can I help?</h3>',
-        '<p class="cb-welcome-sub">Ask me anything, or choose a common question below.<br>I\'m here to help 24/7!</p>',
+      '<span class="cb-welcome-emoji">👋</span>',
+      '<h3 class="cb-welcome-title">Hello! How can I help?</h3>',
+      '<p class="cb-welcome-sub">Ask me anything, or choose a common question below.<br>I\'m here to help 24/7!</p>',
       '</div>',
     ].join("");
     els.newBtn.style.display = "none";
 
-    // Show initial FAQ buttons again
     renderQuickReplies(state, els, state.allFaqs, "💡 Common Questions");
   }
 
   // ─────────────────────────────────────────────────────────────
-  // ESCALATION MODAL — mirrors EscalationModal.jsx exactly
+  // ESCALATION MODAL
   // ─────────────────────────────────────────────────────────────
   function openEscalation(state, els) {
-    // Reset to form view (in case previously shown success)
     els.modal.querySelector(".cb-modal-body").innerHTML = [
       '<div class="cb-submit-err"></div>',
       '<div class="cb-form-group">',
-        '<label class="cb-form-label">Full Name <span>*</span></label>',
-        '<input class="cb-form-input cb-esc-name" type="text" placeholder="Jane Smith" autocomplete="name">',
-        '<div class="cb-field-err cb-err-name"></div>',
+      '<label class="cb-form-label">Full Name <span>*</span></label>',
+      '<input class="cb-form-input cb-esc-name" type="text" placeholder="Jane Smith" autocomplete="name">',
+      '<div class="cb-field-err cb-err-name"></div>',
       '</div>',
       '<div class="cb-form-group">',
-        '<label class="cb-form-label">Email Address <span>*</span></label>',
-        '<input class="cb-form-input cb-esc-email" type="email" placeholder="jane@company.com" autocomplete="email">',
-        '<div class="cb-field-err cb-err-email"></div>',
+      '<label class="cb-form-label">Email Address <span>*</span></label>',
+      '<input class="cb-form-input cb-esc-email" type="email" placeholder="jane@company.com" autocomplete="email">',
+      '<div class="cb-field-err cb-err-email"></div>',
       '</div>',
       '<div class="cb-form-group">',
-        '<label class="cb-form-label">Describe your issue</label>',
-        '<textarea class="cb-form-textarea cb-esc-issue" placeholder="What can we help you with? The more detail, the better." rows="3"></textarea>',
+      '<label class="cb-form-label">Describe your issue</label>',
+      '<textarea class="cb-form-textarea cb-esc-issue" placeholder="What can we help you with? The more detail, the better." rows="3"></textarea>',
       '</div>',
       '<div class="cb-modal-actions">',
-        '<button class="cb-btn cb-btn-secondary cb-modal-cancel">Cancel</button>',
-        '<button class="cb-btn cb-btn-primary cb-modal-submit">📨 Submit Request</button>',
+      '<button class="cb-btn cb-btn-secondary cb-modal-cancel">Cancel</button>',
+      '<button class="cb-btn cb-btn-primary cb-modal-submit">📨 Submit Request</button>',
       '</div>',
     ].join("");
 
-    // Wire cancel
     els.modal.querySelector(".cb-modal-cancel").addEventListener("click", function () {
       els.modal.classList.add("cb-hidden");
     });
-    // Wire submit
     els.modal.querySelector(".cb-modal-submit").addEventListener("click", function () {
       submitEscalation(state, els);
     });
 
     els.modal.classList.remove("cb-hidden");
-
-    // Focus first field
     setTimeout(function () {
       var nameInput = els.modal.querySelector(".cb-esc-name");
       if (nameInput) nameInput.focus();
@@ -938,11 +1247,10 @@
   }
 
   function submitEscalation(state, els) {
-    var name  = (els.modal.querySelector(".cb-esc-name").value  || "").trim();
+    var name = (els.modal.querySelector(".cb-esc-name").value || "").trim();
     var email = (els.modal.querySelector(".cb-esc-email").value || "").trim();
     var issue = (els.modal.querySelector(".cb-esc-issue").value || "").trim();
 
-    // Clear previous errors
     ["name", "email"].forEach(function (f) {
       var el = els.modal.querySelector(".cb-err-" + f);
       if (el) { el.textContent = ""; el.style.display = "none"; }
@@ -950,7 +1258,6 @@
     var submitErr = els.modal.querySelector(".cb-submit-err");
     submitErr.style.display = "none";
 
-    // Validate — matches EscalationModal.jsx validate()
     var valid = true;
     if (!name) {
       var en = els.modal.querySelector(".cb-err-name");
@@ -970,25 +1277,24 @@
     submitBtn.innerHTML = '<div class="cb-spinner"></div> Submitting…';
 
     state.api.escalate({
-      name:                name,
-      email:               email,
-      issue:               issue || "No specific issue provided",
+      name: name,
+      email: email,
+      issue: issue || "No specific issue provided",
       conversationHistory: state.conversationHistory,
     })
       .then(function (res) {
-        // Success screen — matches EscalationModal.jsx ticketId state
         els.modal.querySelector(".cb-modal-body").innerHTML = [
           '<div class="cb-modal-success">',
-            '<span class="cb-success-icon">✅</span>',
-            '<h2 class="cb-success-title">You\'re all set!</h2>',
-            '<p class="cb-success-text">',
-              'A human agent will reach out to <strong>' + sanitize(email) + '</strong> within 24 hours.<br>',
-              'Your ticket ID is:',
-            '</p>',
-            '<div class="cb-ticket-id">' + sanitize(res.ticketId) + '</div>',
-            '<div style="margin-top:24px">',
-              '<button class="cb-btn cb-btn-primary cb-success-close" style="display:inline-flex;max-width:140px">Close</button>',
-            '</div>',
+          '<span class="cb-success-icon">✅</span>',
+          '<h2 class="cb-success-title">You\'re all set!</h2>',
+          '<p class="cb-success-text">',
+          'A human agent will reach out to <strong>' + sanitize(email) + '</strong> within 24 hours.<br>',
+          'Your ticket ID is:',
+          '</p>',
+          '<div class="cb-ticket-id">' + sanitize(res.ticketId) + '</div>',
+          '<div style="margin-top:24px">',
+          '<button class="cb-btn cb-btn-primary cb-success-close" style="display:inline-flex;max-width:140px">Close</button>',
+          '</div>',
           '</div>',
         ].join("");
         els.modal.querySelector(".cb-success-close").addEventListener("click", function () {
@@ -1004,10 +1310,9 @@
   }
 
   // ─────────────────────────────────────────────────────────────
-  // WIRE EVENTS — all interactions
+  // WIRE EVENTS
   // ─────────────────────────────────────────────────────────────
   function wireEvents(state, els) {
-    // Toggle launcher open/close
     els.launcher.addEventListener("click", function () {
       var willOpen = els.root.classList.contains("cb-hidden");
       if (willOpen) {
@@ -1027,7 +1332,6 @@
       }
     });
 
-    // Close button in header
     els.closeBtn.addEventListener("click", function () {
       els.root.classList.add("cb-hidden");
       els.launcher.innerHTML = ICON_CHAT;
@@ -1036,24 +1340,15 @@
       state.isOpen = false;
     });
 
-    // New chat button
-    els.newBtn.addEventListener("click", function () {
-      newChat(state, els);
-    });
+    els.newBtn.addEventListener("click", function () { newChat(state, els); });
+    els.humanBtn.addEventListener("click", function () { openEscalation(state, els); });
 
-    // Human escalation
-    els.humanBtn.addEventListener("click", function () {
-      openEscalation(state, els);
-    });
-
-    // Textarea auto-resize — matches ChatInput.jsx useEffect
     els.textarea.addEventListener("input", function () {
       els.textarea.style.height = "auto";
       els.textarea.style.height = Math.min(els.textarea.scrollHeight, 120) + "px";
       els.sendBtn.disabled = !els.textarea.value.trim() || state.isTyping;
     });
 
-    // Enter to send, Shift+Enter for newline — matches ChatInput.jsx handleKeyDown
     els.textarea.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -1067,7 +1362,6 @@
       }
     });
 
-    // Send button
     els.sendBtn.addEventListener("click", function () {
       var text = els.textarea.value.trim();
       if (text && !state.isTyping) {
@@ -1078,38 +1372,43 @@
       }
     });
 
-    // Click outside modal to close
     els.modal.addEventListener("click", function (e) {
       if (e.target === els.modal) els.modal.classList.add("cb-hidden");
     });
 
-    // Escape key closes modal
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") {
-        if (!els.modal.classList.contains("cb-hidden")) {
-          els.modal.classList.add("cb-hidden");
-        }
+      if (e.key === "Escape" && !els.modal.classList.contains("cb-hidden")) {
+        els.modal.classList.add("cb-hidden");
       }
     });
   }
 
   // ─────────────────────────────────────────────────────────────
-  // PUBLIC API — returned from initChatbot()
+  // PUBLIC API
   // ─────────────────────────────────────────────────────────────
   function initChatbot(userConfig) {
     function boot() {
-      var cfg   = mergeConfig(userConfig);
+      var cfg = mergeConfig(userConfig);
       var state = createState(cfg);
       injectStyles(cfg);
-      var els   = buildDOM(cfg);
+      var els = buildDOM(cfg);
       wireEvents(state, els);
 
+      // ── Kick off auto-crawl immediately (non-blocking) ─────────
+      if (cfg.autoCrawl && !state.autoCrawlDone) {
+        state.autoCrawlDone = true;
+        // Small delay so the page is fully settled before we hit the network
+        setTimeout(function () {
+          autoSeedFAQs(state, els);
+        }, 500);
+      }
+
       console.log(
-        "[ChatBot] Ready — appId: \"" + cfg.appId + "\"" +
-        (cfg.apiUrl ? ", api: \"" + cfg.apiUrl + "\"" : ", api: same-origin")
+        "[ChatBot] v3.0.0 Ready — appId: \"" + cfg.appId + "\"" +
+        (cfg.apiUrl ? ", api: \"" + cfg.apiUrl + "\"" : ", api: same-origin") +
+        (cfg.autoCrawl ? ", autoCrawl: ON" : "")
       );
 
-      // Public API object — matches original chatbot.js API
       return {
         open: function () {
           els.root.classList.remove("cb-hidden");
@@ -1131,6 +1430,29 @@
           setTimeout(function () { sendMessage(state, els, text); }, state.historyLoaded ? 0 : 600);
         },
         clearHistory: function () { newChat(state, els); },
+        /**
+         * Manually trigger an auto-crawl cycle (ignores TTL).
+         * Useful for single-page apps where the route changes
+         * after initial load.
+         *   chatbot.recrawl();                   // re-crawl current page
+         *   chatbot.recrawl(['https://...']);     // re-crawl specific URLs
+         */
+        recrawl: function (urls) {
+          var prevUrls = cfg.autoCrawlUrls;
+          if (urls) cfg.autoCrawlUrls = urls;
+          var prevTTL = cfg.autoCrawlTTLHours;
+          cfg.autoCrawlTTLHours = 0; // force
+          autoSeedFAQs(state, els);
+          cfg.autoCrawlUrls = prevUrls;
+          cfg.autoCrawlTTLHours = prevTTL;
+        },
+        /**
+         * Clear the TTL cache so the next auto-crawl will
+         * re-fetch all URLs regardless of when they were last crawled.
+         */
+        resetCrawlCache: function () {
+          clearCrawlTTLCache(cfg.appId);
+        },
         destroy: function () {
           ["cb-styles", "cb-root", "cb-launcher", "cb-modal"].forEach(function (id) {
             var el = document.getElementById(id);
@@ -1141,7 +1463,6 @@
       };
     }
 
-    // Wait for DOM if needed
     if (document.readyState === "loading") {
       return new Promise(function (resolve) {
         document.addEventListener("DOMContentLoaded", function () { resolve(boot()); });

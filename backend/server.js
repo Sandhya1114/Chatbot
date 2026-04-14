@@ -97,6 +97,7 @@ const path    = require("path");
 const chatRoutes       = require("./routes/chat");
 const escalationRoutes = require("./routes/escalation");
 const adminRoutes      = require("./routes/admin");
+const crawlRoutes = require("./routes/crawl");
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
@@ -141,6 +142,7 @@ app.get("/health", (req, res) => {
 app.use("/api/chat",     chatRoutes);
 app.use("/api/escalate", escalationRoutes);
 app.use("/api/admin",    adminRoutes);
+app.use("/api/admin/crawl", crawlRoutes);
 
 // 404
 app.use((req, res) => {
