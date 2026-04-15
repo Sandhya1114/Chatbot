@@ -1,683 +1,1863 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChatBot Admin Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     :root {
-      --color-primary:#4f46e5; --color-primary-dark:#3730a3; --color-primary-light:#818cf8;
-      --color-success:#10b981; --color-warning:#f59e0b; --color-danger:#ef4444;
-      --color-bg:#f8fafc; --color-bg-card:#ffffff; --color-bg-chat:#f1f5f9;
-      --color-border:#e2e8f0; --color-border-light:#f1f5f9;
-      --color-text-primary:#0f172a; --color-text-secondary:#475569; --color-text-muted:#94a3b8;
-      --font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
-      --font-mono:'JetBrains Mono','Courier New',monospace;
-      --radius-sm:6px; --radius-md:12px; --radius-lg:16px; --radius-xl:24px; --radius-full:9999px;
-      --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
-      --shadow-md:0 4px 6px -1px rgba(0,0,0,.08),0 2px 4px -2px rgba(0,0,0,.06);
-      --shadow-xl:0 20px 25px -5px rgba(0,0,0,.12),0 8px 10px -6px rgba(0,0,0,.08);
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --primary-light: #e0e7ff;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text: #0f172a;
+      --text-2: #475569;
+      --text-3: #94a3b8;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --font: 'DM Sans', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --r: 12px;
+      --r-lg: 16px;
+      --r-xl: 20px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, .08);
     }
-    html { scroll-behavior:smooth; }
-    body { font-family:var(--font-family); background:var(--color-bg); color:var(--color-text-primary); -webkit-font-smoothing:antialiased; min-height:100vh; }
-    button { font-family:var(--font-family); cursor:pointer; border:none; background:none; }
-    input,textarea,select { font-family:var(--font-family); }
-    ::-webkit-scrollbar { width:6px; }
-    ::-webkit-scrollbar-thumb { background:var(--color-border); border-radius:var(--radius-full); }
 
-    /* NAV */
-    .admin-nav {
-      background:var(--color-bg-card); border-bottom:1px solid var(--color-border);
-      padding:0 32px; display:flex; align-items:center; height:64px;
-      position:sticky; top:0; z-index:100; box-shadow:var(--shadow-sm); gap:16px;
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
     }
-    .nav-brand { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+
+    /* ── NAV ── */
+    .nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 0;
+      flex-shrink: 0;
+    }
+
     .nav-logo {
-      width:36px; height:36px;
-      background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));
-      border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-size:18px;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
     }
-    .nav-title { font-size:18px; font-weight:700; letter-spacing:-0.02em; }
-    .nav-sub { font-size:12px; color:var(--color-text-muted); }
-    .nav-api {
-      display:flex; align-items:center; gap:8px; background:var(--color-bg);
-      border:1px solid var(--color-border); border-radius:var(--radius-full);
-      padding:4px 4px 4px 14px; flex:1; max-width:400px;
+
+    .nav-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
     }
-    .nav-api input {
-      border:none; background:transparent; outline:none;
-      font-size:13px; color:var(--color-text-primary); font-family:var(--font-mono); flex:1; min-width:0;
+
+    .nav-sub {
+      font-size: 11px;
+      color: var(--text-3);
     }
-    .nav-api input::placeholder { color:var(--color-text-muted); }
-    .btn-connect {
-      padding:5px 14px; border-radius:var(--radius-full); background:var(--color-primary);
-      color:#fff; font-size:12px; font-weight:700; white-space:nowrap;
+
+    .nav-tabs {
+      display: flex;
+      gap: 4px;
+      flex: 1;
     }
-    .btn-connect:hover { background:var(--color-primary-dark); }
-    #api-status { font-size:11px; padding:3px 10px; border-radius:var(--radius-full); white-space:nowrap; font-weight:600; }
-    .s-ok  { background:#d1fae5; color:#065f46; }
-    .s-err { background:#fef2f2; color:#991b1b; }
-    .nav-tabs { display:flex; gap:4px; margin-left:auto; flex-shrink:0; }
-    .nav-tab {
-      padding:7px 16px; border-radius:var(--radius-full); font-size:13px; font-weight:500;
-      color:var(--color-text-secondary); transition:all 150ms; cursor:pointer;
+
+    .tab-btn {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 150ms;
+      white-space: nowrap;
     }
-    .nav-tab:hover { background:var(--color-bg-chat); color:var(--color-text-primary); }
-    .nav-tab.active { background:var(--color-primary); color:#fff; }
 
-    /* CONTENT */
-    .content { max-width:1100px; margin:0 auto; padding:32px; }
-    .page { display:none; }
-    .page.active { display:block; }
-
-    /* SECTION HEADER */
-    .sec-hd { margin-bottom:28px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; }
-    .sec-title { font-size:24px; font-weight:700; letter-spacing:-0.02em; }
-    .sec-sub { font-size:14px; color:var(--color-text-secondary); margin-top:4px; }
-
-    /* ANALYTICS GRID */
-    .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:32px; }
-    .stat-card {
-      background:var(--color-bg-card); border-radius:var(--radius-lg); padding:24px;
-      border:1px solid var(--color-border); box-shadow:var(--shadow-sm);
-      transition:box-shadow 150ms,transform 150ms;
+    .tab-btn:hover {
+      background: var(--bg);
+      color: var(--text);
     }
-    .stat-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
-    .stat-icon { width:44px; height:44px; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:20px; margin-bottom:16px; }
-    .i-purple { background:#ede9fe; } .i-green { background:#d1fae5; }
-    .i-blue { background:#dbeafe; }   .i-amber { background:#fef3c7; }
-    .stat-val { font-size:36px; font-weight:800; letter-spacing:-0.03em; line-height:1; margin-bottom:4px; }
-    .stat-label { font-size:13px; color:var(--color-text-secondary); font-weight:500; }
-    .stat-pct { font-size:12px; color:var(--color-text-muted); margin-top:4px; }
 
-    /* TABLE */
-    .tbl-wrap { background:var(--color-bg-card); border-radius:var(--radius-lg); border:1px solid var(--color-border); box-shadow:var(--shadow-sm); overflow:hidden; }
-    .tbl-hd { padding:16px 20px; border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
-    .tbl-title { font-size:15px; font-weight:700; }
-    .tbl-count { font-size:12px; color:var(--color-text-muted); padding:2px 10px; background:var(--color-bg-chat); border-radius:var(--radius-full); }
-    .tbl-scroll { overflow-x:auto; }
-    table { width:100%; border-collapse:collapse; }
-    thead th {
-      background:var(--color-bg-chat); padding:10px 16px; text-align:left;
-      font-size:11px; font-weight:700; color:var(--color-text-muted);
-      text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--color-border); white-space:nowrap;
+    .tab-btn.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 700;
     }
-    tbody td { padding:12px 16px; font-size:13px; border-bottom:1px solid var(--color-border-light); vertical-align:middle; }
-    tbody tr:last-child td { border-bottom:none; }
-    tbody tr:hover td { background:var(--color-bg-chat); }
-    .badge { padding:2px 10px; border-radius:var(--radius-full); font-size:11px; font-weight:600; text-transform:capitalize; }
-    .b-pending  { background:#fef3c7; color:#92400e; }
-    .b-progress { background:#dbeafe; color:#1e40af; }
-    .b-resolved { background:#d1fae5; color:#065f46; }
-    .preview { max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; color:var(--color-text-muted); }
 
-    /* FAQ LIST */
-    .faq-bar { display:flex; gap:10px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
-    .search { flex:1; min-width:200px; padding:8px 14px; border:1.5px solid var(--color-border); border-radius:var(--radius-full); font-size:13px; outline:none; }
-    .search:focus { border-color:var(--color-primary); }
-    .faq-list { display:flex; flex-direction:column; gap:10px; }
-    .faq-card {
-      background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:var(--radius-lg);
-      padding:18px 20px; box-shadow:var(--shadow-sm); transition:box-shadow 150ms,border-color 150ms;
+    /* ── MAIN ── */
+    .main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 24px;
     }
-    .faq-card:hover { box-shadow:var(--shadow-md); border-color:rgba(79,70,229,.3); }
-    .faq-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-    .faq-q { font-size:14px; font-weight:700; line-height:1.4; }
-    .faq-id { font-family:var(--font-mono); font-size:10px; color:var(--color-text-muted); margin-top:3px; }
-    .faq-a { font-size:13px; color:var(--color-text-secondary); margin-top:8px; line-height:1.55; white-space:pre-line; }
-    .kw-wrap { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
-    .kw { padding:2px 9px; border-radius:var(--radius-full); background:#ede9fe; color:var(--color-primary); font-size:11px; font-family:var(--font-mono); }
-    .faq-acts { display:flex; gap:6px; flex-shrink:0; }
 
-    /* UPLOAD */
-    .upload-box {
-      border:2px dashed var(--color-border); border-radius:var(--radius-lg); padding:48px 24px;
-      text-align:center; background:var(--color-bg-card); transition:all 150ms; cursor:pointer; position:relative; margin-bottom:14px;
+    /* ── SECTION HEADER ── */
+    .section-header {
+      margin-bottom: 24px;
     }
-    .upload-box:hover,.upload-box.over { border-color:var(--color-primary); background:#f5f3ff; }
-    .upload-box input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-    .upload-icon { font-size:40px; display:block; margin-bottom:12px; }
-    .upload-title { font-size:16px; font-weight:600; margin-bottom:4px; }
-    .upload-hint { font-size:13px; color:var(--color-text-muted); }
-    .upload-fmts { display:flex; justify-content:center; gap:8px; margin-top:12px; }
-    .fmt { padding:3px 10px; border-radius:var(--radius-full); border:1px solid var(--color-border); font-size:11px; font-family:var(--font-mono); color:var(--color-text-muted); }
-    .upload-opts { display:flex; gap:16px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
-    .upload-opts label { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--color-text-secondary); cursor:pointer; }
-    .upload-opts input[type=checkbox] { accent-color:var(--color-primary); width:14px; height:14px; }
 
-    /* ALERTS */
-    .alert { padding:10px 16px; border-radius:var(--radius-md); font-size:13px; font-weight:500; margin-bottom:16px; display:flex; align-items:center; gap:8px; animation:slideDown .3s ease; }
-    .a-ok   { background:#d1fae5; color:#065f46; border:1px solid #a7f3d0; }
-    .a-err  { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
-    .a-warn { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
-
-    /* BUTTONS */
-    .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 18px; border-radius:var(--radius-md); font-size:13px; font-weight:600; cursor:pointer; border:none; transition:all 150ms; white-space:nowrap; }
-    .btn:disabled { opacity:.65; cursor:not-allowed; }
-    .btn-primary { background:var(--color-primary); color:#fff; }
-    .btn-primary:hover:not(:disabled) { background:var(--color-primary-dark); transform:translateY(-1px); }
-    .btn-secondary { background:var(--color-bg-chat); color:var(--color-text-secondary); border:1.5px solid var(--color-border); }
-    .btn-secondary:hover:not(:disabled) { background:var(--color-border-light); }
-    .btn-danger { background:#fef2f2; color:var(--color-danger); border:1px solid #fecaca; }
-    .btn-danger:hover:not(:disabled) { background:#fee2e2; }
-    .btn-sm { padding:5px 12px; font-size:12px; }
-
-    /* MODAL */
-    .overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:1100; padding:16px; animation:fadeIn .2s ease; }
-    .overlay.hidden { display:none; }
-    .modal { background:var(--color-bg-card); border-radius:var(--radius-xl); width:100%; max-width:500px; box-shadow:var(--shadow-xl); overflow:hidden; animation:slideUp .3s cubic-bezier(.34,1.56,.64,1); max-height:90vh; overflow-y:auto; }
-    .modal-hd { background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark)); padding:20px 24px; color:#fff; }
-    .modal-title { font-size:18px; font-weight:700; }
-    .modal-sub { font-size:13px; color:rgba(255,255,255,.75); margin-top:3px; }
-    .modal-body { padding:24px; }
-    .modal-ft { padding:16px 24px; border-top:1px solid var(--color-border); display:flex; gap:10px; justify-content:flex-end; }
-    .fg { margin-bottom:16px; }
-    .fl { display:block; font-size:12px; font-weight:700; color:var(--color-text-secondary); margin-bottom:6px; text-transform:uppercase; letter-spacing:.05em; }
-    .fi,.ft {
-      width:100%; padding:8px 14px; border:1.5px solid var(--color-border); border-radius:var(--radius-md);
-      font-size:13px; color:var(--color-text-primary); background:var(--color-bg); outline:none;
-      transition:border-color 150ms,box-shadow 150ms;
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
     }
-    .fi:focus,.ft:focus { border-color:var(--color-primary); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
-    .ft { resize:vertical; min-height:100px; line-height:1.55; }
 
-    /* DRAWER */
-    .drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:900; animation:fadeIn .2s ease; }
-    .drawer-overlay.hidden { display:none; }
-    .drawer {
-      position:fixed; right:0; top:0; bottom:0; width:400px;
-      background:var(--color-bg-card); border-left:1px solid var(--color-border);
-      z-index:901; display:flex; flex-direction:column; box-shadow:-4px 0 20px rgba(0,0,0,.1);
-      animation:slideInRight .3s ease;
+    .section-sub {
+      font-size: 13px;
+      color: var(--text-3);
+      margin-top: 4px;
     }
-    .drawer-hd { padding:16px 20px; border-bottom:1px solid var(--color-border); display:flex; align-items:flex-start; justify-content:space-between; }
-    .drawer-title { font-size:15px; font-weight:700; }
-    .drawer-sub2 { font-size:12px; color:var(--color-text-muted); margin-top:2px; }
-    .drawer-close { width:28px; height:28px; border-radius:var(--radius-full); background:var(--color-bg-chat); color:var(--color-text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
-    .drawer-msgs { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
-    .dm { max-width:85%; }
-    .dm.user { align-self:flex-end; }
-    .dm.bot  { align-self:flex-start; display:flex; gap:6px; }
-    .dm-avatar { width:26px; height:26px; border-radius:var(--radius-full); background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark)); color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .dm-wrap { display:flex; flex-direction:column; gap:3px; }
-    .dm-src { font-size:10px; color:var(--color-primary); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
-    .dm-bubble { padding:8px 13px; border-radius:12px; font-size:13px; line-height:1.55; }
-    .dm.user .dm-bubble { background:var(--color-primary); color:#fff; border-bottom-right-radius:4px; }
-    .dm.bot .dm-bubble  { background:var(--color-bg-chat); color:var(--color-text-primary); border-bottom-left-radius:4px; border:1px solid var(--color-border); }
 
-    /* LOADING */
-    .loading-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px; gap:12px; color:var(--color-text-muted); font-size:14px; }
-    .spinner { width:32px; height:32px; border:3px solid var(--color-border); border-top-color:var(--color-primary); border-radius:50%; animation:spin .8s linear infinite; }
-    .empty { padding:48px 24px; text-align:center; color:var(--color-text-muted); }
-    .empty-icon { font-size:40px; display:block; margin-bottom:10px; }
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
 
-    /* KEYFRAMES */
-    @keyframes fadeIn    { from { opacity:0; } to { opacity:1; } }
-    @keyframes slideUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes spin      { to { transform:rotate(360deg); } }
-    @keyframes slideInRight { from { transform:translateX(100%); } to { transform:translateX(0); } }
+    /* ── ALERTS ── */
+    .alert {
+      padding: 12px 16px;
+      border-radius: var(--r);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
 
-    @media (max-width:768px) {
-      .admin-nav { padding:0 16px; flex-wrap:wrap; height:auto; padding-top:10px; padding-bottom:10px; }
-      .nav-api { max-width:100%; order:3; flex-basis:100%; }
-      .nav-tabs { flex-shrink:0; }
-      .content { padding:20px 16px; }
-      .stat-grid { grid-template-columns:repeat(2,1fr); }
-      .drawer { width:100%; }
+    .alert-success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #065f46;
+    }
+
+    .alert-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+
+    .alert-info {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+    }
+
+    /* ── ANALYTICS GRID ── */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .a-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .a-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin: 0 auto 10px;
+    }
+
+    .a-icon-total {
+      background: #eff6ff;
+    }
+
+    .a-icon-faq {
+      background: #f5f3ff;
+    }
+
+    .a-icon-ai {
+      background: #ecfdf5;
+    }
+
+    .a-icon-escalate {
+      background: #fff7ed;
+    }
+
+    .a-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .a-label {
+      font-size: 12px;
+      color: var(--text-3);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .a-pct {
+      font-size: 11px;
+      color: var(--primary);
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .table-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .table-head-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .badge {
+      padding: 2px 10px;
+      border-radius: 99px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-3);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      background: var(--bg);
+      font-weight: 600;
+      color: var(--text-2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    tr:not(:last-child) td {
+      border-bottom: 1px solid #f8fafc;
+    }
+
+    tr:hover td {
+      background: #fafbff;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-open {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status-progress {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+
+    .status-closed {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      padding: 9px 18px;
+      border-radius: var(--r);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 150ms;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #e2e8f0;
+    }
+
+    .btn-danger {
+      background: #fef2f2;
+      color: var(--danger);
+      border: 1px solid #fecaca;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #fee2e2;
+    }
+
+    .btn-dark {
+      background: var(--text);
+      color: #fff;
+    }
+
+    .btn-dark:hover:not(:disabled) {
+      background: #1e293b;
+    }
+
+    .btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    /* ── FORM ELEMENTS ── */
+    label.form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+      margin-bottom: 5px;
+    }
+
+    input[type=text],
+    input[type=url],
+    input[type=number],
+    input[type=email],
+    textarea,
+    select {
+      width: 100%;
+      padding: 9px 13px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--r);
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 150ms, box-shadow 150ms;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, .1);
+      background: #fff;
+    }
+
+    textarea {
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    /* Toggle switch */
+    .toggle-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .toggle-info {
+      flex: 1;
+    }
+
+    .toggle-info h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+    }
+
+    .toggle-info p {
+      font-size: 12px;
+      color: var(--text-3);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      border-radius: 99px;
+      border: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 200ms;
+    }
+
+    .toggle[data-on="true"] {
+      background: var(--primary);
+    }
+
+    .toggle[data-on="false"] {
+      background: #cbd5e1;
+    }
+
+    .toggle-knob {
+      position: absolute;
+      top: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: left 200ms;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+      pointer-events: none;
+    }
+
+    .toggle[data-on="true"] .toggle-knob {
+      left: 20px;
+    }
+
+    .toggle[data-on="false"] .toggle-knob {
+      left: 3px;
+    }
+
+    /* ── UPLOAD AREA ── */
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: var(--r-xl);
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 200ms;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .upload-area:hover {
+      border-color: var(--primary);
+      background: #fafbff;
+    }
+
+    .upload-area input[type=file] {
+      display: none;
+    }
+
+    .upload-icon {
+      font-size: 36px;
+      margin-bottom: 8px;
+    }
+
+    .upload-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .upload-hint {
+      font-size: 12px;
+      color: var(--text-3);
+    }
+
+    /* ── KEYWORD TAG ── */
+    .kw-tag {
+      display: inline-block;
+      padding: 1px 7px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 99px;
+      font-size: 11px;
+      margin: 2px;
+    }
+
+    /* ── PROGRESS BAR ── */
+    .progress-wrap {
+      background: #e2e8f0;
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 99px;
+      transition: width .3s;
+    }
+
+    /* ── CRAWL LINK LIST ── */
+    .link-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #f8fafc;
+      cursor: pointer;
+      transition: background 100ms;
+    }
+
+    .link-row:hover {
+      background: #fafbff;
+    }
+
+    .link-row.selected {
+      background: #fafbff;
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      border: 2px solid #d1d5db;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 150ms;
+    }
+
+    .checkbox.checked {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .check-svg {
+      display: none;
+    }
+
+    .checkbox.checked .check-svg {
+      display: block;
+    }
+
+    /* ── FAQ CARD ── */
+    .faq-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #f8fafc;
+      cursor: pointer;
+      transition: background 100ms;
+    }
+
+    .faq-row:hover {
+      background: #fafbff;
+    }
+
+    .faq-row.selected {
+      background: #fafbff;
+    }
+
+    .faq-source {
+      font-size: 10px;
+      color: var(--text-3);
+      margin-bottom: 3px;
+    }
+
+    .faq-q {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .faq-a {
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ── EMPTY / LOADING ── */
+    .empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-3);
+      font-size: 14px;
+    }
+
+    .empty-icon {
+      font-size: 36px;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, .3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      vertical-align: middle;
+    }
+
+    .spinner-dark {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    /* ── CODE BLOCK ── */
+    .code-block {
+      position: relative;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: var(--r-lg);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .code-copy {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, .1);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, .2);
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: var(--font);
+    }
+
+    .code-copy:hover {
+      background: rgba(255, 255, 255, .2);
+    }
+
+    /* ── HOW-IT-WORKS GRID ── */
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    .how-item {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .how-item p {
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.4;
+    }
+
+    /* ── STEP INDICATOR ── */
+    .step-card {
+      text-align: center;
+      padding: 40px 24px;
+    }
+
+    .step-emoji {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .step-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    /* ── DONE CARD ── */
+    .done-card {
+      text-align: center;
+      padding: 48px 24px;
+    }
+
+    .done-emoji {
+      font-size: 56px;
+      margin-bottom: 16px;
+    }
+
+    /* ── TAB PANEL ── */
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* ── INFO PILL ── */
+    .pill {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .pill-faq {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .nav {
+        padding: 0 12px;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .nav-tabs {
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+
+      .main {
+        padding: 16px 12px;
+      }
     }
   </style>
 </head>
+
 <body>
 
-<!-- NAV -->
-<nav class="admin-nav">
-  <div class="nav-brand">
-    <div class="nav-logo">💬</div>
-    <div>
-      <div class="nav-title">ChatBot Admin</div>
-      <div class="nav-sub">Dashboard</div>
-    </div>
-  </div>
-
-  <div class="nav-api">
-    <span style="font-size:11px;color:var(--color-text-muted);white-space:nowrap">🔗 API:</span>
-    <input type="text" id="api-url-input" placeholder="https://your-backend.com" autocomplete="off">
-    <button class="btn-connect" onclick="connectApi()">Connect</button>
-  </div>
-
-  <span id="api-status" class="s-err">● Not connected</span>
-
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('analytics',this)">📊 Analytics</button>
-    <button class="nav-tab" onclick="showPage('faqs',this)">📚 FAQs</button>
-    <button class="nav-tab" onclick="showPage('escalations',this)">🎫 Escalations</button>
-  </div>
-</nav>
-
-<div class="content">
-
-  <!-- ── ANALYTICS ── -->
-  <div class="page active" id="page-analytics">
-    <div class="sec-hd">
+  <!-- ═══════════════════════════════════════════════════════════
+     NAV
+═══════════════════════════════════════════════════════════ -->
+  <nav class="nav">
+    <div class="nav-brand">
+      <div class="nav-logo">🤖</div>
       <div>
-        <h1 class="sec-title">Analytics Overview</h1>
-        <p class="sec-sub">Real-time metrics from your chatbot deployment</p>
-      </div>
-      <button class="btn btn-secondary btn-sm" onclick="loadAnalytics()">🔄 Refresh</button>
-    </div>
-
-    <div id="analytics-loading" class="loading-wrap">
-      <div class="spinner"></div>
-      <span>Connect your backend API above to load analytics</span>
-    </div>
-
-    <div class="stat-grid" id="stat-grid" style="display:none">
-      <div class="stat-card">
-        <div class="stat-icon i-purple">💬</div>
-        <div class="stat-val" id="s-total">—</div>
-        <div class="stat-label">Total Queries</div>
-        <div class="stat-pct" id="s-total-sub"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon i-green">📚</div>
-        <div class="stat-val" id="s-faq">—</div>
-        <div class="stat-label">FAQ Answered</div>
-        <div class="stat-pct" id="s-faq-pct"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon i-blue">✨</div>
-        <div class="stat-val" id="s-ai">—</div>
-        <div class="stat-label">AI Answered</div>
-        <div class="stat-pct" id="s-ai-pct"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon i-amber">🎫</div>
-        <div class="stat-val" id="s-esc">—</div>
-        <div class="stat-label">Escalations</div>
-        <div class="stat-pct" id="s-esc-rate"></div>
+        <div class="nav-title">ChatBot Admin</div>
+        <div class="nav-sub">Dashboard</div>
       </div>
     </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="analytics">📊 Analytics</button>
+      <button class="tab-btn" data-tab="faqs">📚 FAQ Manager</button>
+      <button class="tab-btn" data-tab="crawler">🌐 Web Crawler</button>
+      <button class="tab-btn" data-tab="autocrawl">🤖 Auto-Crawl</button>
+    </div>
+  </nav>
 
-    <div class="tbl-wrap" id="recent-esc-wrap" style="display:none">
-      <div class="tbl-hd">
-        <span class="tbl-title">Recent Escalations</span>
-        <button class="btn btn-secondary btn-sm" onclick="showPage('escalations',null)">View All →</button>
-      </div>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody id="recent-esc-body"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <main class="main">
 
-  <!-- ── FAQs ── -->
-  <div class="page" id="page-faqs">
-    <div class="sec-hd">
-      <div>
-        <h1 class="sec-title">FAQ Knowledge Base</h1>
-        <p class="sec-sub">Upload, edit, and manage your chatbot's FAQ answers</p>
+    <!-- ─────────────────────────── ANALYTICS ─────────────────────── -->
+    <div id="tab-analytics" class="tab-panel active">
+      <div class="section-header">
+        <h2 class="section-title">Analytics Overview</h2>
+        <p class="section-sub">Live stats · Auto-refreshes every 30 seconds</p>
       </div>
-      <button class="btn btn-primary" onclick="openAddModal()">＋ Add FAQ</button>
-    </div>
-
-    <!-- Upload -->
-    <div style="margin-bottom:32px">
-      <div class="upload-box" id="upload-box">
-        <input type="file" id="faq-file" accept=".json,.csv,.pdf" onchange="onFileSelect(this)">
-        <span class="upload-icon">📤</span>
-        <div class="upload-title" id="upload-title">Drag & drop or click to upload FAQs</div>
-        <div class="upload-hint" id="upload-hint">Supports JSON, CSV, and PDF formats</div>
-        <div class="upload-fmts"><span class="fmt">JSON</span><span class="fmt">CSV</span><span class="fmt">PDF</span></div>
+      <div id="analytics-alert"></div>
+      <div class="analytics-grid" id="analytics-cards">
+        <div class="a-card">
+          <div class="a-icon a-icon-total">💬</div>
+          <div class="a-value" id="a-total">—</div>
+          <div class="a-label">Total Queries</div>
+        </div>
+        <div class="a-card">
+          <div class="a-icon a-icon-faq">📚</div>
+          <div class="a-value" id="a-faq">—</div>
+          <div class="a-label">FAQ Answered</div>
+          <div class="a-pct" id="a-faq-pct"></div>
+        </div>
+        <div class="a-card">
+          <div class="a-icon a-icon-ai">✨</div>
+          <div class="a-value" id="a-ai">—</div>
+          <div class="a-label">AI Answered</div>
+          <div class="a-pct" id="a-ai-pct"></div>
+        </div>
+        <div class="a-card">
+          <div class="a-icon a-icon-escalate">👤</div>
+          <div class="a-value" id="a-esc">—</div>
+          <div class="a-label">Escalations</div>
+          <div class="a-pct" id="a-esc-pct"></div>
+        </div>
       </div>
-      <div class="upload-opts">
-        <label><input type="checkbox" id="replace-mode"> Replace all existing FAQs (default: append)</label>
-        <button class="btn btn-primary" id="upload-btn" disabled onclick="doUpload()">📤 Upload FAQs</button>
-        <button class="btn btn-secondary btn-sm" onclick="dlSampleCSV()">⬇️ Sample CSV</button>
-      </div>
-      <div id="upload-alert" style="display:none"></div>
-    </div>
-
-    <!-- FAQ list -->
-    <div class="faq-bar">
-      <input type="text" class="search" id="faq-search" placeholder="🔍 Search questions, answers, keywords…" oninput="filterFAQs()">
-      <span id="faq-count" style="font-size:12px;color:var(--color-text-muted);white-space:nowrap"></span>
-      <button class="btn btn-secondary btn-sm" onclick="loadFAQs()">🔄 Refresh</button>
-    </div>
-    <div id="faq-loading" class="loading-wrap" style="display:none"><div class="spinner"></div><span>Loading FAQs…</span></div>
-    <div id="faq-alert" style="display:none"></div>
-    <div class="faq-list" id="faq-list">
-      <div class="empty"><span class="empty-icon">🔗</span><p>Connect your backend API to manage FAQs</p></div>
-    </div>
-  </div>
-
-  <!-- ── ESCALATIONS ── -->
-  <div class="page" id="page-escalations">
-    <div class="sec-hd">
-      <div>
-        <h1 class="sec-title">Escalation Tickets</h1>
-        <p class="sec-sub">Human escalation requests from your chat users</p>
-      </div>
-      <button class="btn btn-secondary btn-sm" onclick="loadEscalations()">🔄 Refresh</button>
-    </div>
-    <div id="esc-loading" class="loading-wrap" style="display:none"><div class="spinner"></div><span>Loading…</span></div>
-    <div id="esc-alert" style="display:none"></div>
-    <div class="tbl-wrap">
-      <div class="tbl-hd">
-        <span class="tbl-title">All Escalation Requests</span>
-        <span class="tbl-count" id="esc-count">0 tickets</span>
-      </div>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Issue Preview</th><th>Status</th><th>Date</th><th></th></tr></thead>
-          <tbody id="esc-body">
-            <tr><td colspan="6"><div class="empty"><span class="empty-icon">🔗</span><p>Connect your backend API to view escalations</p></div></td></tr>
-          </tbody>
-        </table>
+      <div class="table-wrap">
+        <div class="table-head">
+          <span class="table-head-title">Recent Escalation Requests</span>
+          <span class="badge" id="esc-count">0 total</span>
+        </div>
+        <div id="esc-table-body">
+          <div class="empty"><span class="empty-icon">⏳</span>Loading...</div>
+        </div>
       </div>
     </div>
-  </div>
 
-</div><!-- /content -->
+    <!-- ─────────────────────────── FAQ MANAGER ───────────────────── -->
+    <div id="tab-faqs" class="tab-panel">
+      <div class="section-header">
+        <h2 class="section-title">FAQ Manager</h2>
+        <p class="section-sub">Upload JSON, CSV, or PDF · Choose Append or Replace mode</p>
+      </div>
+      <div id="faq-alert"></div>
 
-<!-- FAQ MODAL -->
-<div class="overlay hidden" id="faq-overlay">
-  <div class="modal">
-    <div class="modal-hd">
-      <div class="modal-title" id="modal-title">Add FAQ</div>
-      <div class="modal-sub">Manage your chatbot's knowledge base</div>
+      <div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 18px;">
+        <span style="font-size:13px;font-weight:600;color:var(--text-2);">Upload mode:</span>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <input type="radio" name="uploadMode" value="append" checked style="accent-color:var(--primary)"> ➕ Append
+          (add to existing)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+          <input type="radio" name="uploadMode" value="replace" style="accent-color:var(--primary)"> 🔄 Replace (wipe
+          &amp; reload)
+        </label>
+        <span id="upload-mode-hint" style="font-size:11px;color:var(--text-3);margin-left:auto;">New FAQs will be added
+          alongside existing ones</span>
+      </div>
+
+      <label class="upload-area" for="faq-file-input">
+        <div class="upload-icon" id="upload-icon">📁</div>
+        <p class="upload-title" id="upload-title">Click to upload FAQ file (JSON, CSV, or PDF)</p>
+        <p class="upload-hint">Accepts .json · .csv · .pdf · Max 10MB</p>
+        <input type="file" id="faq-file-input" accept=".json,.csv,.pdf">
+      </label>
+
+      <div class="card"
+        style="font-size:12px;color:var(--text-2);display:flex;flex-direction:column;gap:6px;padding:12px 16px;margin-bottom:20px;">
+        <div><strong style="color:var(--text-2);">JSON:</strong> <code
+            style="background:#e2e8f0;padding:1px 6px;border-radius:4px;">[{ "question": "...", "answer": "...", "keywords": ["kw1"] }]</code>
+        </div>
+        <div><strong style="color:var(--text-2);">CSV:</strong> <code
+            style="background:#e2e8f0;padding:1px 6px;border-radius:4px;">question,answer,keywords (semicolons for multiple keywords)</code>
+        </div>
+        <div><strong style="color:var(--text-2);">PDF:</strong> <code
+            style="background:#e2e8f0;padding:1px 6px;border-radius:4px;">Q: question A: answer — or numbered 1. Question\nAnswer blocks</code>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-head">
+          <span class="table-head-title">Current FAQ Knowledge Base (Supabase)</span>
+          <span class="badge" id="faq-count">0 entries</span>
+        </div>
+        <div id="faq-table-body">
+          <div class="empty"><span class="empty-icon">⏳</span>Loading FAQs...</div>
+        </div>
+      </div>
     </div>
-    <div class="modal-body">
-      <input type="hidden" id="m-id">
-      <div class="fg"><label class="fl">Question *</label><input type="text" class="fi" id="m-q" placeholder="What are your business hours?"></div>
-      <div class="fg"><label class="fl">Answer *</label><textarea class="ft" id="m-a" placeholder="We are open Monday to Friday…"></textarea></div>
-      <div class="fg"><label class="fl">Keywords <span style="font-weight:400;text-transform:none">(comma-separated)</span></label><input type="text" class="fi" id="m-kw" placeholder="hours, open, timing, schedule"></div>
+
+    <!-- ─────────────────────────── WEB CRAWLER ───────────────────── -->
+    <div id="tab-crawler" class="tab-panel">
+      <div class="section-header">
+        <h2 class="section-title">🌐 Website FAQ Crawler</h2>
+        <p class="section-sub">Single page or deep crawl · Extracts Q&amp;A pairs · Save directly to your chatbot</p>
+      </div>
+      <div id="crawler-alert"></div>
+      <div id="crawler-content"></div>
     </div>
-    <div class="modal-ft">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" id="m-save" onclick="saveFAQ()">Save FAQ</button>
+
+    <!-- ─────────────────────────── AUTO-CRAWL ────────────────────── -->
+    <div id="tab-autocrawl" class="tab-panel">
+      <div class="section-header">
+        <h2 class="section-title">🤖 Auto-Crawl Settings</h2>
+        <p class="section-sub">Configure the chatbot embed to auto-index your site's FAQs on page load</p>
+      </div>
+      <div id="autocrawl-alert"></div>
+
+      <!-- How it works -->
+      <div class="card"
+        style="background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1px solid #bfdbfe;margin-bottom:20px;">
+        <p style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:10px;">💡 How Auto-Crawl works</p>
+        <div class="how-grid">
+          <div class="how-item"><span style="font-size:18px;flex-shrink:0;">1️⃣</span>
+            <div>
+              <p style="font-weight:700;color:#1e40af;font-size:12px;">Embed fires</p>
+              <p style="color:#3b82f6;">When your page loads with the chatbot script, it silently calls your backend</p>
+            </div>
+          </div>
+          <div class="how-item"><span style="font-size:18px;flex-shrink:0;">2️⃣</span>
+            <div>
+              <p style="font-weight:700;color:#1e40af;font-size:12px;">Backend crawls</p>
+              <p style="color:#3b82f6;">Your server fetches the page HTML and extracts FAQ patterns</p>
+            </div>
+          </div>
+          <div class="how-item"><span style="font-size:18px;flex-shrink:0;">3️⃣</span>
+            <div>
+              <p style="font-weight:700;color:#1e40af;font-size:12px;">FAQs indexed</p>
+              <p style="color:#3b82f6;">Extracted Q&amp;A pairs are saved to Supabase (or session-only)</p>
+            </div>
+          </div>
+          <div class="how-item"><span style="font-size:18px;flex-shrink:0;">4️⃣</span>
+            <div>
+              <p style="font-weight:700;color:#1e40af;font-size:12px;">TTL cache</p>
+              <p style="color:#3b82f6;">Won't re-crawl the same URL until the TTL window expires</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="card" id="ac-settings-card">
+        <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:20px;">⚙️ Configuration</p>
+
+        <div class="toggle-wrap">
+          <div class="toggle-info">
+            <h4>Enable Auto-Crawl</h4>
+            <p>When enabled, the embedded chatbot will crawl and index FAQs automatically on page load.</p>
+          </div>
+          <button class="toggle" id="tog-enabled" data-on="false" onclick="acToggle('enabled')">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+        <hr style="border:none;border-top:1px solid #f1f5f9;margin:16px 0;">
+
+        <div style="margin-bottom:16px;">
+          <label class="form-label">URLs to crawl <span style="font-weight:400;color:var(--text-3);">(one per line ·
+              leave blank to crawl current page)</span></label>
+          <textarea id="ac-urls" rows="4"
+            placeholder="https://yoursite.com/faq&#10;https://yoursite.com/help&#10;https://yoursite.com/shipping"
+            style="font-family:var(--mono);font-size:12px;"></textarea>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label class="form-label">Save mode</label>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+              <input type="radio" name="acMode" value="append" checked style="accent-color:var(--primary)"> ➕ Append
+              (add to existing FAQs)
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+              <input type="radio" name="acMode" value="replace" style="accent-color:var(--primary)"> 🔄 Replace (wipe
+              &amp; reload)
+            </label>
+          </div>
+        </div>
+
+        <div class="toggle-wrap">
+          <div class="toggle-info">
+            <h4>Save to database</h4>
+            <p>ON = persist to Supabase permanently. OFF = session-only (FAQs lost on page reload).</p>
+          </div>
+          <button class="toggle" id="tog-saveToDb" data-on="true" onclick="acToggle('saveToDb')">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label class="form-label">Re-crawl interval (hours) <span style="font-weight:400;color:var(--text-3);">· 0 =
+              always re-crawl</span></label>
+          <input type="number" id="ac-ttl" value="24" min="0" max="720" style="max-width:120px;">
+        </div>
+        <hr style="border:none;border-top:1px solid #f1f5f9;margin:16px 0;">
+
+        <div class="toggle-wrap">
+          <div class="toggle-info">
+            <h4>Deep link discovery</h4>
+            <p>Discover and crawl internal links found on each base URL (up to Max Pages).</p>
+          </div>
+          <button class="toggle" id="tog-deepLinks" data-on="false" onclick="acToggle('deepLinks')">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+
+        <div id="deep-options" style="display:none;">
+          <div style="margin-bottom:16px;">
+            <label class="form-label">Max pages per deep crawl</label>
+            <input type="number" id="ac-maxPages" value="10" min="1" max="50" style="max-width:100px;">
+          </div>
+          <div class="toggle-wrap">
+            <div class="toggle-info">
+              <h4>Only crawl FAQ/help paths</h4>
+              <p>Only deep-crawl pages whose path matches <code
+                  style="background:#f1f5f9;padding:1px 5px;border-radius:4px;">/faq|help|support/</code>.</p>
+            </div>
+            <button class="toggle" id="tog-onlyFAQ" data-on="false" onclick="acToggle('onlyFAQ')">
+              <span class="toggle-knob"></span>
+            </button>
+          </div>
+        </div>
+        <hr style="border:none;border-top:1px solid #f1f5f9;margin:16px 0;">
+
+        <div class="toggle-wrap">
+          <div class="toggle-info">
+            <h4>Silent mode</h4>
+            <p>Suppress auto-crawl console logs in the browser. Recommended for production.</p>
+          </div>
+          <button class="toggle" id="tog-silent" data-on="true" onclick="acToggle('silent')">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+
+        <div style="margin-top:8px;">
+          <button class="btn btn-primary" onclick="acSave()" id="ac-save-btn">💾 Save Settings</button>
+        </div>
+      </div>
+
+      <!-- Test -->
+      <div class="card">
+        <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">🧪 Test Auto-Crawl</p>
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;">Run a test crawl to verify extraction before
+          going live.</p>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <input type="url" id="ac-test-url" placeholder="https://yoursite.com/faq (or leave blank to use URLs above)"
+            style="flex:1;min-width:200px;">
+          <button class="btn btn-dark" onclick="acRunTest()" id="ac-test-btn">▶ Run Test</button>
+        </div>
+        <div id="ac-test-result"></div>
+      </div>
+
+      <!-- Embed code -->
+      <div class="card">
+        <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">📋 Your Embed Code</p>
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;">Copy this snippet and paste it before the
+          closing <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;">&lt;/body&gt;</code> tag on any
+          page.</p>
+        <div class="code-block" id="ac-embed-code">
+          <button class="code-copy" onclick="acCopyEmbed()">Copy</button>
+          <span id="ac-embed-text"></span>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<!-- CONVERSATION DRAWER -->
-<div class="drawer-overlay hidden" id="d-overlay" onclick="closeDrawer()"></div>
-<div class="drawer" id="drawer" style="display:none">
-  <div class="drawer-hd">
-    <div>
-      <div class="drawer-title" id="d-title">Conversation</div>
-      <div class="drawer-sub2" id="d-sub"></div>
-    </div>
-    <button class="drawer-close" onclick="closeDrawer()">✕</button>
-  </div>
-  <div class="drawer-msgs" id="d-msgs"></div>
-</div>
+  </main>
 
-<script>
-// ── STATE ──
-var API = localStorage.getItem('cb_admin_api') || '';
-var allFaqs = [], allEscs = [], editId = null, selFile = null;
+  <script>
+    // ════════════════════════════════════════════════════════════════
+    // UTILS
+    // ════════════════════════════════════════════════════════════════
+    const API = '';  // same-origin; set to 'https://your-backend.com' if needed
 
-// ── INIT ──
-document.addEventListener('DOMContentLoaded', function () {
-  if (API) { document.getElementById('api-url-input').value = API; connectApi(); }
-  var box = document.getElementById('upload-box');
-  box.addEventListener('dragover', function(e){ e.preventDefault(); box.classList.add('over'); });
-  box.addEventListener('dragleave', function(){ box.classList.remove('over'); });
-  box.addEventListener('drop', function(e){ e.preventDefault(); box.classList.remove('over'); if(e.dataTransfer.files[0]) onFileSelect({files:e.dataTransfer.files}); });
-});
-
-// ── API ──
-function req(path, opts) {
-  opts = opts || {};
-  return fetch(API + path, {
-    headers: Object.assign({'Content-Type':'application/json'}, opts.headers||{}),
-    method: opts.method || 'GET', body: opts.body,
-  }).then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.error||'HTTP '+r.status); return d; }); });
-}
-function reqFile(path, fd) {
-  return fetch(API + path, {method:'POST', body:fd})
-    .then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.error||'HTTP '+r.status); return d; }); });
-}
-
-// ── CONNECT ──
-function connectApi() {
-  var url = document.getElementById('api-url-input').value.trim().replace(/\/$/,'');
-  if (!url) { setStatus(false); return; }
-  API = url; localStorage.setItem('cb_admin_api', url);
-  fetch(url + '/health').then(function(r){ return r.json(); })
-    .then(function(){ setStatus(true); loadAnalytics(); })
-    .catch(function(){
-      req('/api/admin/analytics').then(function(){ setStatus(true); loadAnalytics(); }).catch(function(){ setStatus(false); });
-    });
-}
-function setStatus(ok) {
-  var el = document.getElementById('api-status');
-  el.textContent = ok ? '● Connected' : '● Not connected';
-  el.className = ok ? 's-ok' : 's-err';
-}
-
-// ── NAV ──
-function showPage(name, btn) {
-  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-  document.getElementById('page-'+name).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
-  if (name==='analytics') loadAnalytics();
-  if (name==='faqs') loadFAQs();
-  if (name==='escalations') loadEscalations();
-}
-
-// ── ANALYTICS — GET /api/admin/analytics ──
-function loadAnalytics() {
-  if (!API) return;
-  show('analytics-loading'); hide('stat-grid'); hide('recent-esc-wrap');
-  req('/api/admin/analytics').then(function(d) {
-    hide('analytics-loading'); show('stat-grid','grid');
-    setText('s-total', fmtN(d.totalQueries));
-    setText('s-faq', fmtN(d.faqAnswered));
-    setText('s-faq-pct', (d.faqAnsweredPercent||0)+'% of total');
-    setText('s-ai', fmtN(d.aiAnswered));
-    setText('s-ai-pct', (d.aiAnsweredPercent||0)+'% of total');
-    setText('s-esc', fmtN(d.escalations));
-    setText('s-esc-rate', (d.escalationRate||0)+'% escalation rate');
-    var list = Array.isArray(d.escalationsList) ? d.escalationsList : [];
-    if (list.length > 0) {
-      show('recent-esc-wrap');
-      document.getElementById('recent-esc-body').innerHTML = list.slice(0,5).map(function(e){
-        return '<tr><td style="font-weight:600">'+esc(e.name)+'</td>'+
-          '<td style="font-family:var(--font-mono);font-size:12px">'+esc(e.email)+'</td>'+
-          '<td><span class="badge '+bClass(e.status)+'">'+esc(e.status)+'</span></td>'+
-          '<td style="font-size:12px;color:var(--color-text-muted)">'+fmtD(e.createdAt)+'</td></tr>';
-      }).join('');
+    async function apiFetch(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        ...opts,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
     }
-  }).catch(function(err){ hide('analytics-loading'); document.getElementById('analytics-loading').innerHTML='<div class="alert a-err">⚠️ '+esc(err.message)+'</div>'; show('analytics-loading'); });
-}
 
-// ── FAQs — GET /api/admin/faqs + PUT + DELETE ──
-function loadFAQs() {
-  if (!API) return;
-  show('faq-loading'); hide('faq-alert');
-  document.getElementById('faq-list').innerHTML='';
-  req('/api/admin/faqs').then(function(d){
-    hide('faq-loading'); allFaqs = Array.isArray(d.faqs)?d.faqs:[];
-    renderFAQs(allFaqs);
-  }).catch(function(err){ hide('faq-loading'); showAlert('faq-alert','err','⚠️ '+err.message); });
-}
+    function fmtDate(iso) {
+      if (!iso) return '';
+      try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+      catch { return iso; }
+    }
 
-function renderFAQs(faqs) {
-  var list = document.getElementById('faq-list');
-  setText('faq-count', faqs.length+' FAQs');
-  if (!faqs.length) { list.innerHTML='<div class="empty"><span class="empty-icon">📭</span><p>No FAQs found. Upload some to get started!</p></div>'; return; }
-  list.innerHTML = faqs.map(function(f){
-    var kws = Array.isArray(f.keywords)?f.keywords:[];
-    var fData = JSON.stringify(f).replace(/"/g,'&quot;');
-    return '<div class="faq-card">'+
-      '<div class="faq-top">'+
-        '<div style="flex:1"><div class="faq-q">'+esc(f.question)+'</div><div class="faq-id">ID: '+f.id+'</div></div>'+
-        '<div class="faq-acts">'+
-          '<button class="btn btn-secondary btn-sm" onclick=\'openEditModal('+fData+')\'>✏️ Edit</button>'+
-          '<button class="btn btn-danger btn-sm" onclick="delFAQ('+f.id+')">🗑️</button>'+
-        '</div>'+
-      '</div>'+
-      '<div class="faq-a">'+esc(f.answer)+'</div>'+
-      (kws.length?'<div class="kw-wrap">'+kws.map(function(k){return '<span class="kw">'+esc(k)+'</span>';}).join('')+'</div>':'')+
-    '</div>';
-  }).join('');
-}
+    function showAlert(containerId, type, msg, autoClear = 6000) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      el.innerHTML = `<div class="alert alert-${type}">${type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️'} ${msg}</div>`;
+      if (autoClear) setTimeout(() => { el.innerHTML = ''; }, autoClear);
+    }
 
-function filterFAQs() {
-  var q = document.getElementById('faq-search').value.toLowerCase();
-  renderFAQs(q ? allFaqs.filter(function(f){
-    return (f.question||'').toLowerCase().includes(q)||(f.answer||'').toLowerCase().includes(q)||
-      (Array.isArray(f.keywords)&&f.keywords.some(function(k){return k.toLowerCase().includes(q);}));
-  }) : allFaqs);
-}
+    // ════════════════════════════════════════════════════════════════
+    // TAB SWITCHING
+    // ════════════════════════════════════════════════════════════════
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'faqs') loadFAQs();
+        if (btn.dataset.tab === 'crawler') renderCrawler();
+        if (btn.dataset.tab === 'autocrawl') acRenderEmbed();
+      });
+    });
 
-function openAddModal() {
-  editId=null; setText('modal-title','Add FAQ');
-  setVal('m-id',''); setVal('m-q',''); setVal('m-a',''); setVal('m-kw','');
-  document.getElementById('faq-overlay').classList.remove('hidden');
-}
-function openEditModal(f) {
-  editId=f.id; setText('modal-title','Edit FAQ');
-  setVal('m-id',f.id); setVal('m-q',f.question||''); setVal('m-a',f.answer||'');
-  setVal('m-kw',Array.isArray(f.keywords)?f.keywords.join(', '):'');
-  document.getElementById('faq-overlay').classList.remove('hidden');
-}
-function closeModal() { document.getElementById('faq-overlay').classList.add('hidden'); editId=null; }
+    // ════════════════════════════════════════════════════════════════
+    // ANALYTICS TAB
+    // ════════════════════════════════════════════════════════════════
+    async function loadAnalytics() {
+      try {
+        const data = await apiFetch('/api/admin/analytics');
+        document.getElementById('a-total').textContent = data.totalQueries ?? 0;
+        document.getElementById('a-faq').textContent = data.faqAnswered ?? 0;
+        document.getElementById('a-ai').textContent = data.aiAnswered ?? 0;
+        document.getElementById('a-esc').textContent = data.escalations ?? 0;
+        if (data.faqAnsweredPercent) document.getElementById('a-faq-pct').textContent = data.faqAnsweredPercent + '% of total';
+        if (data.aiAnsweredPercent) document.getElementById('a-ai-pct').textContent = data.aiAnsweredPercent + '% of total';
+        if (data.escalationRate) document.getElementById('a-esc-pct').textContent = data.escalationRate + '% of total';
 
-function saveFAQ() {
-  var q=getVal('m-q').trim(), a=getVal('m-a').trim();
-  var kw=getVal('m-kw').trim().split(',').map(function(k){return k.trim();}).filter(Boolean);
-  if (!q||!a) { alert('Question and Answer are required.'); return; }
-  var btn=document.getElementById('m-save'); btn.disabled=true; btn.textContent='Saving…';
-  var p = editId
-    ? req('/api/admin/faqs/'+editId,{method:'PUT',body:JSON.stringify({question:q,answer:a,keywords:kw})})
-    : req('/api/admin/faqs/upload',{method:'POST',body:JSON.stringify([{question:q,answer:a,keywords:kw}])});
-  p.then(function(){ closeModal(); showAlert('faq-alert','ok','✅ FAQ '+(editId?'updated':'added')+' successfully.'); loadFAQs(); })
-   .catch(function(e){ showAlert('faq-alert','err','⚠️ '+e.message); })
-   .finally(function(){ btn.disabled=false; btn.textContent='Save FAQ'; });
-}
+        const list = data.escalationsList ?? [];
+        document.getElementById('esc-count').textContent = list.length + ' total';
 
-function delFAQ(id) {
-  if (!confirm('Delete this FAQ? This cannot be undone.')) return;
-  req('/api/admin/faqs/'+id,{method:'DELETE'})
-    .then(function(){ showAlert('faq-alert','ok','✅ FAQ deleted.'); loadFAQs(); })
-    .catch(function(e){ showAlert('faq-alert','err','⚠️ '+e.message); });
-}
+        if (list.length === 0) {
+          document.getElementById('esc-table-body').innerHTML =
+            '<div class="empty"><span class="empty-icon">🎉</span>No escalations yet — all queries handled by the bot!</div>';
+        } else {
+          let rows = list.map(e => {
+            const sc = e.status === 'in-progress' ? 'progress' : e.status;
+            return `<tr>
+          <td><strong>${e.name || ''}</strong></td>
+          <td>${e.email || ''}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.issue || ''}</td>
+          <td><span class="status-badge status-${sc}">${e.status || ''}</span></td>
+          <td>${fmtDate(e.createdAt)}</td>
+        </tr>`;
+          }).join('');
+          document.getElementById('esc-table-body').innerHTML =
+            `<table><thead><tr><th>Name</th><th>Email</th><th>Issue</th><th>Status</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table>`;
+        }
+      } catch (err) {
+        showAlert('analytics-alert', 'error', 'Failed to load analytics: ' + err.message);
+      }
+    }
 
-// ── FILE UPLOAD — POST /api/admin/faqs/upload (multipart) ──
-function onFileSelect(inp) {
-  var f=inp.files&&inp.files[0]; if(!f) return;
-  selFile=f;
-  document.getElementById('upload-btn').disabled=false;
-  setText('upload-title','📄 '+f.name);
-  setText('upload-hint',(f.size/1024).toFixed(1)+' KB · Click Upload FAQs to proceed');
-  hide('upload-alert');
-}
-function doUpload() {
-  if (!selFile) return;
-  if (!API) { showAlert('upload-alert','err','⚠️ Connect your backend API first.'); return; }
-  var replace=document.getElementById('replace-mode').checked;
-  var btn=document.getElementById('upload-btn'); btn.disabled=true; btn.textContent='⏳ Uploading…';
-  hide('upload-alert');
-  var fd=new FormData(); fd.append('file',selFile);
-  reqFile('/api/admin/faqs/upload'+(replace?'?replace=true':''),fd)
-    .then(function(d){
-      var msg=d.mode==='replace'?'✅ Replaced all FAQs with '+d.total+' entries.':'✅ Appended '+d.added+' FAQs. Total: '+d.total;
-      showAlert('upload-alert','ok',msg);
-      selFile=null; document.getElementById('faq-file').value='';
-      setText('upload-title','Drag & drop or click to upload FAQs');
-      setText('upload-hint','Supports JSON, CSV, and PDF formats');
-      loadFAQs();
-    })
-    .catch(function(e){ showAlert('upload-alert','err','⚠️ '+e.message); })
-    .finally(function(){ btn.disabled=false; btn.textContent='📤 Upload FAQs'; });
-}
-function dlSampleCSV() {
-  var csv='question,answer,keywords\n"What are your business hours?","We are open Monday–Friday, 9AM–6PM EST.","hours,open,timing"\n"What is your refund policy?","We offer a 30-day money-back guarantee.","refund,cancel,money back"\n"How do I reset my password?","Go to the login page and click Forgot Password.","password,reset,forgot"';
-  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='sample-faqs.csv'; a.click();
-}
+    loadAnalytics();
+    setInterval(loadAnalytics, 30000);
 
-// ── ESCALATIONS — GET /api/escalate ──
-function loadEscalations() {
-  if (!API) return;
-  show('esc-loading'); hide('esc-alert'); document.getElementById('esc-body').innerHTML='';
-  req('/api/escalate').then(function(d){
-    hide('esc-loading'); allEscs=Array.isArray(d.escalations)?d.escalations:[];
-    renderEscs(allEscs);
-  }).catch(function(e){ hide('esc-loading'); showAlert('esc-alert','err','⚠️ '+e.message); });
-}
-function renderEscs(list) {
-  setText('esc-count', list.length+' ticket'+(list.length!==1?'s':''));
-  var body=document.getElementById('esc-body');
-  if (!list.length) { body.innerHTML='<tr><td colspan="6"><div class="empty"><span class="empty-icon">🎉</span><p>No escalations yet!</p></div></td></tr>'; return; }
-  body.innerHTML=list.map(function(e){
-    var hist=Array.isArray(e.conversationHistory)?e.conversationHistory:[];
-    var last=hist.length?hist[hist.length-1].content:e.issue;
-    var eData=JSON.stringify(e).replace(/"/g,'&quot;');
-    return '<tr>'+
-      '<td style="font-weight:600">'+esc(e.name)+'</td>'+
-      '<td style="font-family:var(--font-mono);font-size:12px">'+esc(e.email)+'</td>'+
-      '<td><div class="preview">'+esc(last||e.issue||'—')+'</div></td>'+
-      '<td><span class="badge '+bClass(e.status)+'">'+esc(e.status)+'</span></td>'+
-      '<td style="font-size:12px;color:var(--color-text-muted);white-space:nowrap">'+fmtD(e.createdAt)+'</td>'+
-      '<td><button class="btn btn-secondary btn-sm" onclick=\'openDrawer('+eData+')\'>💬 View</button></td>'+
-    '</tr>';
-  }).join('');
-}
+    // ════════════════════════════════════════════════════════════════
+    // FAQ MANAGER TAB
+    // ════════════════════════════════════════════════════════════════
+    async function loadFAQs() {
+      document.getElementById('faq-table-body').innerHTML =
+        '<div class="empty"><span class="spinner-dark"></span> Loading FAQs from Supabase...</div>';
+      try {
+        const data = await apiFetch('/api/admin/faqs');
+        const faqs = Array.isArray(data) ? data : (data.faqs ?? []);
+        document.getElementById('faq-count').textContent = faqs.length + ' entries';
 
-// ── DRAWER ──
-function openDrawer(e) {
-  var hist=Array.isArray(e.conversationHistory)?e.conversationHistory:[];
-  setText('d-title',e.name+' — Conversation');
-  setText('d-sub',e.email+' · '+fmtD(e.createdAt));
-  var msgs=document.getElementById('d-msgs');
-  msgs.innerHTML=!hist.length
-    ? '<div class="empty"><span class="empty-icon">💬</span><p>No messages. Issue: '+esc(e.issue)+'</p></div>'
-    : hist.map(function(m){
-        var isU=m.role==='user';
-        if(isU) return '<div class="dm user"><div class="dm-wrap"><div class="dm-bubble">'+esc(m.content)+'</div></div></div>';
-        var src=m.source?'<div class="dm-src">'+(m.source==='faq'?'📚 FAQ':'✨ AI')+'</div>':'';
-        return '<div class="dm bot"><div class="dm-avatar">🤖</div><div class="dm-wrap">'+src+'<div class="dm-bubble">'+esc(m.content)+'</div></div></div>';
-      }).join('');
-  document.getElementById('drawer').style.display='flex';
-  document.getElementById('drawer').style.flexDirection='column';
-  document.getElementById('d-overlay').classList.remove('hidden');
-  msgs.scrollTop=msgs.scrollHeight;
-}
-function closeDrawer() {
-  document.getElementById('drawer').style.display='none';
-  document.getElementById('d-overlay').classList.add('hidden');
-}
+        if (faqs.length === 0) {
+          document.getElementById('faq-table-body').innerHTML =
+            '<div class="empty"><span class="empty-icon">📭</span>No FAQs found. Upload a file above to get started.</div>';
+          return;
+        }
 
-// ── EVENT LISTENERS ──
-document.getElementById('faq-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeDrawer();}});
+        let rows = faqs.map(faq => {
+          const kws = Array.isArray(faq.keywords) ? faq.keywords : [];
+          const kwHtml = kws.slice(0, 4).map(k => `<span class="kw-tag">${k}</span>`).join('') +
+            (kws.length > 4 ? `<span style="font-size:11px;color:var(--text-3);"> +${kws.length - 4} more</span>` : '');
+          return `<tr>
+        <td style="color:var(--text-3);">${faq.id}</td>
+        <td><strong>${faq.question || ''}</strong></td>
+        <td style="max-width:200px;">${kwHtml}</td>
+        <td>
+          <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;"
+            onclick="deleteFAQ(${faq.id}, ${JSON.stringify((faq.question || '').replace(/"/g, '&quot;'))})">
+            Delete
+          </button>
+        </td>
+      </tr>`;
+        }).join('');
+        document.getElementById('faq-table-body').innerHTML =
+          `<table><thead><tr><th style="width:40px;">#</th><th>Question</th><th>Keywords</th><th style="width:80px;">Action</th></tr></thead><tbody>${rows}</tbody></table>`;
+      } catch (err) {
+        showAlert('faq-alert', 'error', 'Failed to load FAQs: ' + err.message);
+        document.getElementById('faq-table-body').innerHTML = '';
+      }
+    }
 
-// ── UTILS ──
-function esc(s){ var d=document.createElement('div');d.textContent=s||'';return d.innerHTML; }
-function fmtN(n){ return (n||0).toLocaleString(); }
-function fmtD(iso){ if(!iso)return'—'; try{return new Date(iso).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return iso;} }
-function bClass(s){ s=(s||'').toLowerCase(); if(s==='resolved')return'b-resolved'; if(s.includes('progress')||s==='open')return'b-progress'; return'b-pending'; }
-function show(id,d){ var e=document.getElementById(id);if(e)e.style.display=d||'block'; }
-function hide(id){ var e=document.getElementById(id);if(e)e.style.display='none'; }
-function setText(id,t){ var e=document.getElementById(id);if(e)e.textContent=t; }
-function getVal(id){ return document.getElementById(id).value; }
-function setVal(id,v){ document.getElementById(id).value=v; }
-function showAlert(id,type,msg){
-  var el=document.getElementById(id);
-  if(!el)return;
-  el.innerHTML='<div class="alert a-'+type+'">'+esc(msg)+'</div>';
-  el.style.display='block';
-  if(type==='ok')setTimeout(function(){el.style.display='none';},5000);
-}
-</script>
+    async function deleteFAQ(id, question) {
+      if (!confirm(`Delete FAQ: "${question}"?`)) return;
+      try {
+        await apiFetch(`/api/admin/faqs/${id}`, { method: 'DELETE' });
+        showAlert('faq-alert', 'success', 'FAQ deleted successfully.');
+        loadFAQs();
+      } catch (err) {
+        showAlert('faq-alert', 'error', 'Delete failed: ' + err.message);
+      }
+    }
+
+    // Upload mode hint
+    document.querySelectorAll('input[name="uploadMode"]').forEach(r => {
+      r.addEventListener('change', () => {
+        document.getElementById('upload-mode-hint').textContent =
+          r.value === 'append'
+            ? 'New FAQs will be added alongside existing ones'
+            : '⚠️ This will DELETE all current FAQs first';
+      });
+    });
+
+    // File upload
+    document.getElementById('faq-file-input').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const replace = document.querySelector('input[name="uploadMode"]:checked').value === 'replace';
+      document.getElementById('upload-icon').textContent = '⏳';
+      document.getElementById('upload-title').textContent = 'Uploading to Supabase...';
+
+      try {
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+          const fd = new FormData();
+          fd.append('file', file);
+          const url = `/api/admin/faqs/upload${replace ? '?replace=true' : ''}`;
+          const res = await fetch(url, { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Upload failed');
+          showAlert('faq-alert', 'success', data.message || 'PDF uploaded successfully!');
+          loadFAQs();
+          return;
+        }
+
+        const text = await file.text();
+        let faqArray;
+
+        if (file.name.toLowerCase().endsWith('.json')) {
+          const parsed = JSON.parse(text);
+          faqArray = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.faqs) ? parsed.faqs : null);
+          if (!faqArray) throw new Error('JSON must be an array or { faqs: [] }.');
+        } else if (file.name.toLowerCase().endsWith('.csv')) {
+          faqArray = parseCSVClient(text);
+        } else {
+          throw new Error('Unsupported file type.');
+        }
+
+        if (!faqArray?.length) throw new Error('No valid FAQ entries found.');
+
+        const url = `/api/admin/faqs/upload${replace ? '?replace=true' : ''}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(faqArray),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        showAlert('faq-alert', 'success', data.message || `Uploaded ${faqArray.length} FAQs!`);
+        loadFAQs();
+      } catch (err) {
+        showAlert('faq-alert', 'error', 'Upload failed: ' + err.message);
+      } finally {
+        document.getElementById('upload-icon').textContent = '📁';
+        document.getElementById('upload-title').textContent = 'Click to upload FAQ file (JSON, CSV, or PDF)';
+        e.target.value = '';
+      }
+    });
+
+    function parseCSVClient(text) {
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+      if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
+      function parseLine(line) {
+        const fields = []; let cur = ''; let inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') { if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+          else if (ch === ',' && !inQ) { fields.push(cur.trim()); cur = ''; }
+          else cur += ch;
+        }
+        fields.push(cur.trim()); return fields;
+      }
+      const headers = parseLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z]/g, ''));
+      const qi = headers.indexOf('question'), ai = headers.indexOf('answer'), ki = headers.indexOf('keywords');
+      if (qi === -1 || ai === -1) throw new Error('CSV must contain "question" and "answer" columns.');
+      const faqs = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim(); if (!line) continue;
+        const f = parseLine(line);
+        const q = f[qi]?.replace(/^"|"$/g, '').trim();
+        const a = f[ai]?.replace(/^"|"$/g, '').trim();
+        if (!q || !a) continue;
+        let kws = [];
+        if (ki !== -1 && f[ki]) kws = f[ki].replace(/^"|"$/g, '').split(/[;,|]/).map(k => k.trim()).filter(Boolean);
+        faqs.push({ question: q, answer: a, keywords: kws });
+      }
+      if (!faqs.length) throw new Error('No valid rows found in CSV.');
+      return faqs;
+    }
+
+    loadFAQs();
+
+    // ════════════════════════════════════════════════════════════════
+    // WEB CRAWLER TAB
+    // ════════════════════════════════════════════════════════════════
+    let crawlerState = {
+      step: 'idle',           // idle | fetching_links | select_links | crawling | preview | saving | done
+      mode: 'single',
+      url: '',
+      saveMode: 'append',
+      discoveredLinks: [],
+      selectedLinks: new Set(),
+      extractedFAQs: [],
+      selectedFAQIds: new Set(),
+      progress: { done: 0, total: 0, current: '' },
+      savedCount: 0,
+      successMsg: '',
+    };
+
+    const EXAMPLE_URLS = [
+      'https://help.shopify.com/en/manual/your-account',
+      'https://support.google.com/accounts/faq',
+      'https://www.notion.so/help',
+      'https://zapier.com/help/create/basics',
+    ];
+
+    function renderCrawler() {
+      const cs = crawlerState;
+      const wrap = document.getElementById('crawler-content');
+
+      if (cs.step === 'idle' || cs.step === 'fetching_links') {
+        wrap.innerHTML = `
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <button class="btn ${cs.mode === 'single' ? 'btn-primary' : 'btn-secondary'}" onclick="setCrawlerMode('single')">🔍 Single page</button>
+          <button class="btn ${cs.mode === 'deep' ? 'btn-primary' : 'btn-secondary'}" onclick="setCrawlerMode('deep')">🕸️ Deep crawl (follow links)</button>
+        </div>
+        <p style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:10px;">
+          ${cs.mode === 'single' ? '🔗 Enter a specific FAQ/help page URL:' : '🏠 Enter the homepage URL to discover all internal links:'}
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <input type="url" id="crawler-url" style="flex:1;min-width:200px;"
+            placeholder="${cs.mode === 'single' ? 'https://yoursite.com/faq' : 'https://yoursite.com'}"
+            value="${cs.url}" onkeydown="if(event.key==='Enter') crawlerStart()">
+          <button class="btn btn-primary" onclick="crawlerStart()" id="crawl-start-btn"
+            ${cs.step === 'fetching_links' ? 'disabled' : ''}>
+            ${cs.step === 'fetching_links' ? '<span class="spinner"></span> Working...' : cs.mode === 'single' ? '🕷️ Crawl Page' : '🔎 Find Links'}
+          </button>
+        </div>
+        <div style="margin-top:12px;">
+          <p style="font-size:11px;color:var(--text-3);margin-bottom:6px;">💡 Try an example:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${EXAMPLE_URLS.map(u => `<button class="btn btn-secondary" style="font-size:11px;padding:3px 10px;border-radius:99px;" onclick="document.getElementById('crawler-url').value='${u}'">${u.replace('https://', '')}</button>`).join('')}
+          </div>
+        </div>
+        <div style="margin-top:20px;padding:14px 16px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">
+          <p style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:8px;">🔍 How it works:</p>
+          <div class="how-grid">
+            ${(cs.mode === 'single' ? [
+            { i: '1️⃣', t: 'Fetches the page HTML' },
+            { i: '2️⃣', t: 'Detects FAQ patterns (JSON-LD, accordions, headings, dl/dt)' },
+            { i: '3️⃣', t: 'Extracts Q&A pairs with auto-keywords' },
+            { i: '4️⃣', t: 'You review and save selected FAQs' },
+          ] : [
+            { i: '1️⃣', t: 'Fetches homepage and extracts all internal links' },
+            { i: '2️⃣', t: 'You select which pages to crawl (FAQ pages pre-selected)' },
+            { i: '3️⃣', t: 'Each page is crawled and FAQs extracted & deduplicated' },
+            { i: '4️⃣', t: 'Unified review — save selected FAQs to Supabase' },
+          ]).map(x => `<div class="how-item"><span>${x.i}</span><p>${x.t}</p></div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+        return;
+      }
+
+      if (cs.step === 'crawling') {
+        wrap.innerHTML = `
+      <div class="card step-card">
+        <div class="step-emoji">🕷️</div>
+        ${cs.progress.total > 1 ? `
+          <p class="step-title">Crawling ${cs.progress.done} / ${cs.progress.total} pages...</p>
+          <div class="progress-wrap" style="max-width:400px;margin:12px auto;">
+            <div class="progress-bar" style="width:${Math.round((cs.progress.done / cs.progress.total) * 100)}%"></div>
+          </div>
+          <p style="font-size:12px;color:var(--text-3);">${cs.progress.current ? 'Fetching: ' + cs.progress.current : 'Starting...'}</p>
+        ` : '<p class="step-title">Crawling page...</p>'}
+      </div>`;
+        return;
+      }
+
+      if (cs.step === 'select_links') {
+        const links = cs.discoveredLinks;
+        const PRIORITY = /faq|help|support|question|knowledge/i;
+        wrap.innerHTML = `
+      <div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:20px;">🌐</span>
+        <div style="flex:1;">
+          <p style="font-size:13px;font-weight:700;">Found <strong>${links.length}</strong> internal links on <span style="color:var(--primary);">${cs.url}</span></p>
+          <p style="font-size:12px;color:var(--text-2);"><strong style="color:var(--primary);">${cs.selectedLinks.size}</strong> selected · FAQ/help pages pre-selected</p>
+        </div>
+        <button class="btn btn-secondary" onclick="crawlerReset()">← Back</button>
+      </div>
+      <div class="table-wrap" style="margin-bottom:16px;">
+        <div class="table-head">
+          <span class="table-head-title">Select pages to crawl for FAQs</span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px;" onclick="crawlerSelectAllLinks()">All</button>
+            <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px;" onclick="crawlerDeselectAllLinks()">None</button>
+          </div>
+        </div>
+        <div style="max-height:360px;overflow-y:auto;" id="link-list">
+          ${links.map((link, idx) => {
+          const checked = cs.selectedLinks.has(idx);
+          const isPriority = PRIORITY.test(link.path);
+          return `<div class="link-row ${checked ? 'selected' : ''}" onclick="crawlerToggleLink(${idx})">
+              <div class="checkbox ${checked ? 'checked' : ''}">${checked ? '<svg class="check-svg" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>' : ''}</div>
+              <div style="flex:1;min-width:0;">
+                <p style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  ${link.text || link.path}
+                  ${isPriority ? '<span class="pill pill-faq">FAQ</span>' : ''}
+                </p>
+                <p style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${link.href}</p>
+              </div>
+            </div>`;
+        }).join('')}
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn btn-secondary" onclick="crawlerReset()">← New URL</button>
+        <button class="btn btn-primary" onclick="crawlerDeepCrawl()" ${cs.selectedLinks.size === 0 ? 'disabled' : ''}>
+          🕷️ Crawl ${cs.selectedLinks.size} page${cs.selectedLinks.size !== 1 ? 's' : ''}
+        </button>
+      </div>`;
+        return;
+      }
+
+      if (cs.step === 'preview' || cs.step === 'saving') {
+        wrap.innerHTML = `
+      <div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:20px;">🌐</span>
+        <div style="flex:1;">
+          <p style="font-size:13px;font-weight:700;">
+            ${cs.mode === 'deep'
+            ? `Crawled ${cs.selectedLinks.size} page${cs.selectedLinks.size !== 1 ? 's' : ''} from ${cs.url}`
+            : `Crawled: ${cs.url}`}
+          </p>
+          <p style="font-size:12px;color:var(--text-2);">
+            Found <strong>${cs.extractedFAQs.length}</strong> unique FAQs ·
+            <strong style="color:var(--primary);">${cs.selectedFAQIds.size}</strong> selected to save
+          </p>
+        </div>
+        <button class="btn btn-secondary" onclick="crawlerReset()">← New URL</button>
+      </div>
+
+      <div class="card" style="padding:14px 18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:600;color:var(--text-2);">Save mode:</span>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="radio" name="crawlSaveMode" value="append" ${cs.saveMode === 'append' ? 'checked' : ''} onchange="cs_setSaveMode('append')" style="accent-color:var(--primary)"> ➕ Append
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+          <input type="radio" name="crawlSaveMode" value="replace" ${cs.saveMode === 'replace' ? 'checked' : ''} onchange="cs_setSaveMode('replace')" style="accent-color:var(--primary)"> 🔄 Replace all
+        </label>
+        <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;">
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="crawlerSelectAllFAQs()">✅ All</button>
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="crawlerDeselectAllFAQs()">☐ None</button>
+          <button class="btn btn-primary" onclick="crawlerSave()" id="crawler-save-btn"
+            ${cs.step === 'saving' || cs.selectedFAQIds.size === 0 ? 'disabled' : ''}>
+            ${cs.step === 'saving' ? '<span class="spinner"></span> Saving...' : `💾 Save ${cs.selectedFAQIds.size} FAQ${cs.selectedFAQIds.size !== 1 ? 's' : ''}`}
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-head">
+          <span class="table-head-title">Extracted FAQs — Review before saving</span>
+          <span class="badge">${cs.extractedFAQs.length} found</span>
+        </div>
+        ${cs.extractedFAQs.map((faq, idx) => {
+              const checked = cs.selectedFAQIds.has(idx);
+              return `<div class="faq-row ${checked ? 'selected' : ''}" onclick="crawlerToggleFAQ(${idx})">
+            <div class="checkbox ${checked ? 'checked' : ''}" style="margin-top:2px;">${checked ? '<svg class="check-svg" width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>' : ''}</div>
+            <div style="flex:1;min-width:0;">
+              ${faq._source ? `<p class="faq-source">from ${faq._source}</p>` : ''}
+              <p class="faq-q">Q: ${faq.question}</p>
+              <p class="faq-a">A: ${faq.answer}</p>
+              <div style="margin-top:6px;">${(faq.keywords || []).slice(0, 5).map(k => `<span class="kw-tag">${k}</span>`).join('')}</div>
+            </div>
+          </div>`;
+            }).join('')}
+      </div>`;
+        return;
+      }
+
+      if (cs.step === 'done') {
+        wrap.innerHTML = `
+      <div class="card done-card">
+        <div class="done-emoji">🎉</div>
+        <h3 style="font-size:22px;font-weight:800;margin-bottom:8px;">FAQs saved successfully!</h3>
+        <p style="font-size:15px;color:var(--text-2);margin-bottom:6px;">${cs.successMsg || cs.savedCount + ' FAQs are now live in your chatbot\'s knowledge base.'}</p>
+        <p style="font-size:13px;color:var(--text-3);margin-bottom:28px;">Your chatbot will use these in the next query automatically.</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="crawlerReset()">🌐 Crawl Another URL</button>
+          <button class="btn btn-secondary" onclick="switchTab('faqs')">📚 View FAQ Manager</button>
+        </div>
+      </div>`;
+      }
+    }
+
+    function switchTab(id) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      const btn = document.querySelector(`.tab-btn[data-tab="${id}"]`);
+      if (btn) btn.classList.add('active');
+      const panel = document.getElementById('tab-' + id);
+      if (panel) panel.classList.add('active');
+      if (id === 'faqs') loadFAQs();
+    }
+
+    function setCrawlerMode(m) {
+      crawlerState.mode = m;
+      renderCrawler();
+    }
+
+    function crawlerReset() {
+      crawlerState = {
+        step: 'idle', mode: crawlerState.mode, url: '',
+        saveMode: 'append', discoveredLinks: [], selectedLinks: new Set(),
+        extractedFAQs: [], selectedFAQIds: new Set(),
+        progress: { done: 0, total: 0, current: '' }, savedCount: 0, successMsg: '',
+      };
+      document.getElementById('crawler-alert').innerHTML = '';
+      renderCrawler();
+    }
+
+    async function crawlerStart() {
+      const urlVal = (document.getElementById('crawler-url')?.value || '').trim();
+      if (!urlVal) return;
+      crawlerState.url = urlVal;
+      document.getElementById('crawler-alert').innerHTML = '';
+
+      if (crawlerState.mode === 'single') {
+        crawlerState.step = 'crawling';
+        crawlerState.progress = { done: 0, total: 1, current: '' };
+        renderCrawler();
+        try {
+          const data = await apiFetch('/api/admin/crawl/preview', { method: 'POST', body: JSON.stringify({ url: urlVal }) });
+          crawlerState.extractedFAQs = data.faqs;
+          crawlerState.selectedFAQIds = new Set(data.faqs.map((_, i) => i));
+          crawlerState.step = 'preview';
+        } catch (err) {
+          showAlert('crawler-alert', 'error', err.message);
+          crawlerState.step = 'idle';
+        }
+      } else {
+        crawlerState.step = 'fetching_links';
+        renderCrawler();
+        try {
+          const data = await apiFetch('/api/admin/crawl/links', { method: 'POST', body: JSON.stringify({ url: urlVal }) });
+          crawlerState.discoveredLinks = data.links;
+          const PRIORITY = /faq|help|support|question|knowledge/i;
+          const pIdxs = data.links.map((l, i) => ({ ...l, i })).filter(l => PRIORITY.test(l.path)).map(l => l.i);
+          crawlerState.selectedLinks = new Set(pIdxs.length > 0 ? pIdxs : data.links.map((_, i) => i).slice(0, 10));
+          crawlerState.step = 'select_links';
+        } catch (err) {
+          showAlert('crawler-alert', 'error', err.message);
+          crawlerState.step = 'idle';
+        }
+      }
+      renderCrawler();
+    }
+
+    function crawlerToggleLink(idx) {
+      if (crawlerState.selectedLinks.has(idx)) crawlerState.selectedLinks.delete(idx);
+      else crawlerState.selectedLinks.add(idx);
+      renderCrawler();
+    }
+    function crawlerSelectAllLinks() { crawlerState.selectedLinks = new Set(crawlerState.discoveredLinks.map((_, i) => i)); renderCrawler(); }
+    function crawlerDeselectAllLinks() { crawlerState.selectedLinks = new Set(); renderCrawler(); }
+
+    async function crawlerDeepCrawl() {
+      const links = crawlerState.discoveredLinks.filter((_, i) => crawlerState.selectedLinks.has(i));
+      if (!links.length) return;
+      crawlerState.step = 'crawling';
+      crawlerState.progress = { done: 0, total: links.length, current: '' };
+      renderCrawler();
+
+      const allFAQs = [];
+      const seen = new Set();
+
+      for (let i = 0; i < links.length; i++) {
+        crawlerState.progress = { done: i, total: links.length, current: links[i].path };
+        renderCrawler();
+        try {
+          const data = await apiFetch('/api/admin/crawl/preview', { method: 'POST', body: JSON.stringify({ url: links[i].href }) });
+          for (const faq of (data.faqs || [])) {
+            const key = faq.question.toLowerCase().slice(0, 80);
+            if (!seen.has(key)) { seen.add(key); allFAQs.push({ ...faq, _source: links[i].path }); }
+          }
+        } catch { /* skip silently */ }
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      crawlerState.progress.done = links.length;
+      if (!allFAQs.length) {
+        showAlert('crawler-alert', 'error', 'No FAQ content found across the selected pages.');
+        crawlerState.step = 'select_links';
+      } else {
+        crawlerState.extractedFAQs = allFAQs;
+        crawlerState.selectedFAQIds = new Set(allFAQs.map((_, i) => i));
+        crawlerState.step = 'preview';
+      }
+      renderCrawler();
+    }
+
+    function crawlerToggleFAQ(idx) {
+      if (crawlerState.selectedFAQIds.has(idx)) crawlerState.selectedFAQIds.delete(idx);
+      else crawlerState.selectedFAQIds.add(idx);
+      renderCrawler();
+    }
+    function crawlerSelectAllFAQs() { crawlerState.selectedFAQIds = new Set(crawlerState.extractedFAQs.map((_, i) => i)); renderCrawler(); }
+    function crawlerDeselectAllFAQs() { crawlerState.selectedFAQIds = new Set(); renderCrawler(); }
+    function cs_setSaveMode(m) { crawlerState.saveMode = m; }
+
+    async function crawlerSave() {
+      const toSave = crawlerState.extractedFAQs.filter((_, i) => crawlerState.selectedFAQIds.has(i));
+      if (!toSave.length) return;
+      crawlerState.step = 'saving';
+      renderCrawler();
+      try {
+        const data = await apiFetch('/api/admin/crawl/save', {
+          method: 'POST',
+          body: JSON.stringify({ faqs: toSave, mode: crawlerState.saveMode }),
+        });
+        crawlerState.savedCount = data.added;
+        crawlerState.successMsg = data.message;
+        crawlerState.step = 'done';
+      } catch (err) {
+        showAlert('crawler-alert', 'error', err.message);
+        crawlerState.step = 'preview';
+      }
+      renderCrawler();
+    }
+
+    renderCrawler();
+
+    // ════════════════════════════════════════════════════════════════
+    // AUTO-CRAWL TAB
+    // ════════════════════════════════════════════════════════════════
+    const AC_KEY = 'chatbot_autocrawl_settings';
+
+    function acLoad() {
+      try {
+        const s = JSON.parse(localStorage.getItem(AC_KEY) || '{}');
+        if (s.enabled !== undefined) acSetToggle('enabled', s.enabled);
+        if (s.saveToDb !== undefined) acSetToggle('saveToDb', s.saveToDb);
+        if (s.deepLinks !== undefined) { acSetToggle('deepLinks', s.deepLinks); document.getElementById('deep-options').style.display = s.deepLinks ? 'block' : 'none'; }
+        if (s.onlyFAQ !== undefined) acSetToggle('onlyFAQ', s.onlyFAQ);
+        if (s.silent !== undefined) acSetToggle('silent', s.silent);
+        if (s.urls) document.getElementById('ac-urls').value = s.urls;
+        if (s.ttlHours !== undefined) document.getElementById('ac-ttl').value = s.ttlHours;
+        if (s.maxPages !== undefined) document.getElementById('ac-maxPages').value = s.maxPages;
+        if (s.mode) document.querySelector(`input[name="acMode"][value="${s.mode}"]`).checked = true;
+      } catch { }
+    }
+
+    function acGetToggle(id) {
+      return document.getElementById('tog-' + id)?.dataset.on === 'true';
+    }
+
+    function acSetToggle(id, val) {
+      const el = document.getElementById('tog-' + id);
+      if (!el) return;
+      el.dataset.on = String(val);
+    }
+
+    function acToggle(id) {
+      const el = document.getElementById('tog-' + id);
+      if (!el) return;
+      const newVal = el.dataset.on !== 'true';
+      el.dataset.on = String(newVal);
+      if (id === 'deepLinks') {
+        document.getElementById('deep-options').style.display = newVal ? 'block' : 'none';
+      }
+      acRenderEmbed();
+    }
+
+    function acSave() {
+      const s = {
+        enabled: acGetToggle('enabled'),
+        saveToDb: acGetToggle('saveToDb'),
+        deepLinks: acGetToggle('deepLinks'),
+        onlyFAQ: acGetToggle('onlyFAQ'),
+        silent: acGetToggle('silent'),
+        urls: document.getElementById('ac-urls').value,
+        ttlHours: parseInt(document.getElementById('ac-ttl').value) || 24,
+        maxPages: parseInt(document.getElementById('ac-maxPages')?.value) || 10,
+        mode: document.querySelector('input[name="acMode"]:checked')?.value || 'append',
+      };
+      try { localStorage.setItem(AC_KEY, JSON.stringify(s)); } catch { }
+      const btn = document.getElementById('ac-save-btn');
+      btn.textContent = '✅ Saved!';
+      btn.style.background = 'var(--success)';
+      setTimeout(() => { btn.textContent = '💾 Save Settings'; btn.style.background = ''; }, 2000);
+      acRenderEmbed();
+    }
+
+    function acRenderEmbed() {
+      const enabled = acGetToggle('enabled');
+      const saveToDb = acGetToggle('saveToDb');
+      const deepLinks = acGetToggle('deepLinks');
+      const onlyFAQ = acGetToggle('onlyFAQ');
+      const silent = acGetToggle('silent');
+      const urlsRaw = (document.getElementById('ac-urls')?.value || '').trim();
+      const ttl = document.getElementById('ac-ttl')?.value || 24;
+      const maxPages = document.getElementById('ac-maxPages')?.value || 10;
+      const mode = document.querySelector('input[name="acMode"]:checked')?.value || 'append';
+      const urlList = urlsRaw ? JSON.stringify(urlsRaw.split('\n').map(u => u.trim()).filter(Boolean)) : '[]  // [] = crawl current page';
+
+      const code = `<script src="https://your-backend.com/chatbot.js" defer><\/script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof initChatbot === 'function') {
+      initChatbot({
+        apiUrl: 'https://your-backend.com',
+        appId:  'my-app',
+        bot:    { name: 'Support Assistant' },
+
+        // ── Auto-Crawl ──────────────────────────────
+        autoCrawl:             ${enabled},
+        autoCrawlUrls:         ${urlList},
+        autoCrawlMode:         '${mode}',
+        autoCrawlSaveToDb:     ${saveToDb},
+        autoCrawlTTLHours:     ${ttl},
+        autoCrawlDeepLinks:    ${deepLinks},
+        autoCrawlMaxPages:     ${maxPages},
+        autoCrawlOnlyFAQPaths: ${onlyFAQ},
+        autoCrawlSilent:       ${silent},
+      });
+    }
+  });
+<\/script>`;
+
+      const el = document.getElementById('ac-embed-text');
+      if (el) el.textContent = code;
+    }
+
+    async function acRunTest() {
+      const testUrl = (document.getElementById('ac-test-url')?.value || '').trim();
+      const urlsRaw = (document.getElementById('ac-urls')?.value || '').trim();
+      const urls = urlsRaw
+        ? urlsRaw.split('\n').map(u => u.trim()).filter(Boolean)
+        : testUrl ? [testUrl] : [window.location.origin];
+      const mode = document.querySelector('input[name="acMode"]:checked')?.value || 'append';
+      const saveToDb = acGetToggle('saveToDb');
+
+      const btn = document.getElementById('ac-test-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Testing...';
+      document.getElementById('ac-test-result').innerHTML = '';
+
+      try {
+        const data = await apiFetch('/api/admin/crawl/auto', {
+          method: 'POST',
+          body: JSON.stringify({ urls, mode, saveToDb, appId: 'admin-test' }),
+        });
+        const count = data.faqs?.length ?? 0;
+        let faqPreview = '';
+        if (count > 0) {
+          faqPreview = data.faqs.slice(0, 5).map(f => `
+        <div style="padding:8px 0;border-bottom:1px solid #d1fae5;">
+          <p style="font-size:12px;font-weight:600;color:#065f46;">Q: ${f.question}</p>
+          <p style="font-size:11px;color:#047857;line-height:1.4;margin-top:2px;">A: ${f.answer.slice(0, 120)}${f.answer.length > 120 ? '…' : ''}</p>
+        </div>`).join('');
+          if (count > 5) faqPreview += `<p style="font-size:11px;color:var(--text-3);margin-top:8px;">…and ${count - 5} more FAQs</p>`;
+        }
+        const savedLine = data.saved ? `<p style="font-size:12px;color:#065f46;margin-top:8px;">💾 Saved ${data.added} FAQs to database (total: ${data.total})</p>` : '';
+
+        document.getElementById('ac-test-result').innerHTML = `
+      <div class="alert alert-success" style="margin:0;">
+        <p style="font-weight:700;margin-bottom:${count ? '8px' : '0'};">✅ Success! Extracted ${count} FAQs</p>
+        <div style="max-height:200px;overflow-y:auto;">${faqPreview}</div>
+        ${savedLine}
+      </div>`;
+      } catch (err) {
+        document.getElementById('ac-test-result').innerHTML =
+          `<div class="alert alert-error" style="margin:0;">❌ Failed: ${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '▶ Run Test';
+      }
+    }
+
+    function acCopyEmbed() {
+      const text = document.getElementById('ac-embed-text')?.textContent || '';
+      navigator.clipboard?.writeText(text).then(() => {
+        const btn = document.querySelector('.code-copy');
+        if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); }
+      });
+    }
+
+    // Init auto-crawl tab
+    acLoad();
+    acRenderEmbed();
+
+    // Update embed code live when inputs change
+    document.getElementById('ac-urls').addEventListener('input', acRenderEmbed);
+    document.getElementById('ac-ttl').addEventListener('input', acRenderEmbed);
+    document.querySelectorAll('input[name="acMode"]').forEach(r => r.addEventListener('change', acRenderEmbed));
+  </script>
 </body>
+
 </html>
