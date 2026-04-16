@@ -44,7 +44,7 @@ function ChatWindow({ onClose, appId = "default" }) {
             <div className="chat-header__title">Support Assistant</div>
             <div className="chat-header__status">
               <span className="status-dot" aria-hidden="true" />
-              {isLoading ? "Restoring your chat…" : "Online · Typically replies instantly"}
+              {isLoading ? "" : "Online · "}
             </div>
           </div>
 
