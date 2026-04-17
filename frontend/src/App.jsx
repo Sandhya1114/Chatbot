@@ -67,12 +67,12 @@ function DemoHomePage() {
             The all-in-one tool your team needs to work smarter, not harder.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button style={{
+            {/* <button style={{
               background: 'white', color: '#4f46e5', padding: '12px 28px',
               borderRadius: 999, fontWeight: 700, fontSize: 15, border: 'none', cursor: 'pointer',
             }}>
               Start Free Trial
-            </button>
+            </button> */}
             <a href="#/admin" style={{
               background: 'rgba(255,255,255,0.15)', color: 'white', padding: '12px 28px',
               borderRadius: 999, fontWeight: 600, fontSize: 15, border: '2px solid rgba(255,255,255,0.3)',

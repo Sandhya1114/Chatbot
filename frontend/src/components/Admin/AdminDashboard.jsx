@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from "react-router-dom";
 import {
   fetchAnalytics,
   deleteFAQ,
@@ -1171,6 +1172,7 @@ function AutoCrawlTab() {
 // ============================================================
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('analytics');
+const navigate = useNavigate();
 
   useEffect(() => {
     window._adminSwitchTab = (tab) => setActiveTab(tab);
@@ -1187,9 +1189,9 @@ function AdminDashboard() {
   return (
     <div className="admin-page">
       <nav className="admin-nav">
-        <div className="admin-nav__brand">
+        <div className="admin-nav__brand" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
           <div className="admin-nav__logo">🤖</div>
-          <div>
+          <div >
             <div className="admin-nav__title">ChatBot Admin</div>
             <div className="admin-nav__subtitle">Dashboard</div>
           </div>
