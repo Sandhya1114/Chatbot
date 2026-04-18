@@ -450,7 +450,7 @@ function parseCSVClient(text) {
 }
 
 // ============================================================
-// Web Crawler Tab — single-page and deep (multi-link) crawl
+// Web Crawler Tab
 // ============================================================
 const CRAWLER_STEPS = {
   IDLE: 'idle',
@@ -696,28 +696,6 @@ function WebCrawlerTab() {
               ))}
             </div>
           </div>
-
-          <div style={{ marginTop: 20, padding: '14px 16px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>🔍 How it works:</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
-              {(mode === 'single' ? [
-                { icon: '1️⃣', text: 'Fetches the page HTML' },
-                { icon: '2️⃣', text: 'Detects FAQ patterns (JSON-LD, accordions, headings, dl/dt)' },
-                { icon: '3️⃣', text: 'Extracts Q&A pairs with auto-keywords' },
-                { icon: '4️⃣', text: 'You review and save selected FAQs' },
-              ] : [
-                { icon: '1️⃣', text: 'Fetches homepage and extracts all internal links' },
-                { icon: '2️⃣', text: 'You select which pages to crawl (FAQ pages pre-selected)' },
-                { icon: '3️⃣', text: 'Each page is crawled and FAQs extracted & deduplicated' },
-                { icon: '4️⃣', text: 'Unified review — save selected FAQs to Supabase' },
-              ]).map(item => (
-                <div key={item.icon} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                  <span>{item.icon}</span>
-                  <span style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
@@ -856,8 +834,7 @@ function WebCrawlerTab() {
 }
 
 // ============================================================
-// Auto-Crawl Settings Tab  ← NEW
-// Lets admins configure and test the embed auto-crawl feature.
+// Auto-Crawl Settings Tab
 // ============================================================
 function AutoCrawlTab() {
   const DEFAULT_SETTINGS = {
@@ -976,7 +953,6 @@ function AutoCrawlTab() {
         <p className="section-subtitle">Configure the chatbot embed to auto-index your site's FAQs on page load</p>
       </div>
 
-      {/* How it works */}
       <div style={{ ...cardStyle, background: 'linear-gradient(135deg, #eff6ff, #f0fdf4)', border: '1px solid #bfdbfe' }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: '#1e40af', marginBottom: 10 }}>💡 How Auto-Crawl works</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
@@ -997,11 +973,9 @@ function AutoCrawlTab() {
         </div>
       </div>
 
-      {/* Settings form */}
       <div style={cardStyle}>
         <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>⚙️ Configuration</p>
 
-        {/* Enable toggle */}
         <div style={rowStyle}>
           <div style={{ flex: 1 }}>
             <label style={labelStyle}>Enable Auto-Crawl</label>
@@ -1012,7 +986,6 @@ function AutoCrawlTab() {
 
         <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '16px 0' }} />
 
-        {/* URLs */}
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>URLs to crawl <span style={{ fontWeight: 400, color: '#94a3b8' }}>(one per line · leave blank to use current page)</span></label>
           <textarea
@@ -1023,7 +996,6 @@ function AutoCrawlTab() {
           />
         </div>
 
-        {/* Mode */}
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>Save mode</label>
           <div style={{ display: 'flex', gap: 12 }}>
@@ -1036,7 +1008,6 @@ function AutoCrawlTab() {
           </div>
         </div>
 
-        {/* Save to DB toggle */}
         <div style={rowStyle}>
           <div style={{ flex: 1 }}>
             <label style={labelStyle}>Save to database</label>
@@ -1045,7 +1016,6 @@ function AutoCrawlTab() {
           <Toggle value={settings.saveToDb} onChange={v => set('saveToDb', v)} />
         </div>
 
-        {/* TTL */}
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>Re-crawl interval (hours) <span style={{ fontWeight: 400, color: '#94a3b8' }}>· 0 = always re-crawl</span></label>
           <input type="number" min={0} max={720} value={settings.ttlHours} onChange={e => set('ttlHours', parseInt(e.target.value) || 0)} style={{ ...inputStyle, maxWidth: 120 }} />
@@ -1053,7 +1023,6 @@ function AutoCrawlTab() {
 
         <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '16px 0' }} />
 
-        {/* Deep links toggle */}
         <div style={rowStyle}>
           <div style={{ flex: 1 }}>
             <label style={labelStyle}>Deep link discovery</label>
@@ -1081,7 +1050,6 @@ function AutoCrawlTab() {
 
         <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '16px 0' }} />
 
-        {/* Silent mode */}
         <div style={rowStyle}>
           <div style={{ flex: 1 }}>
             <label style={labelStyle}>Silent mode</label>
@@ -1100,7 +1068,6 @@ function AutoCrawlTab() {
         </div>
       </div>
 
-      {/* Test crawl */}
       <div style={cardStyle}>
         <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>🧪 Test Auto-Crawl</p>
         <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>Run a test crawl using your current settings to verify extraction before going live.</p>
@@ -1140,14 +1107,10 @@ function AutoCrawlTab() {
                 )}
               </div>
             )}
-            {testResult.data.saved && (
-              <p style={{ fontSize: 12, color: '#065f46', marginTop: 8 }}>💾 Saved {testResult.data.added} FAQs to database (total: {testResult.data.total})</p>
-            )}
           </div>
         )}
       </div>
 
-      {/* Generated embed code */}
       <div style={cardStyle}>
         <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>📋 Your Embed Code</p>
         <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>Copy this snippet and paste it before the closing <code style={{ background: '#f1f5f9', padding: '1px 5px', borderRadius: 4 }}>&lt;/body&gt;</code> tag on any page where you want the chatbot.</p>
@@ -1168,11 +1131,617 @@ function AutoCrawlTab() {
 }
 
 // ============================================================
+// 🖼️ Image FAQ Extractor Tab  ← NEW
+// Uses Claude Vision API to extract FAQs from screenshots/images
+// ============================================================
+
+const IMG_STEPS = {
+  IDLE: 'idle',
+  PROCESSING: 'processing',
+  PREVIEW: 'preview',
+  SAVING: 'saving',
+  DONE: 'done',
+};
+
+function ImageExtractTab() {
+  const [step, setStep] = useState(IMG_STEPS.IDLE);
+  const [images, setImages] = useState([]); // [{ file, dataUrl, name }]
+  const [extractedFAQs, setExtractedFAQs] = useState([]);
+  const [selectedFAQIds, setSelectedFAQIds] = useState(new Set());
+  const [saveMode, setSaveMode] = useState('append');
+  const [error, setError] = useState(null);
+  const [progressMsg, setProgressMsg] = useState('');
+  const [savedCount, setSavedCount] = useState(0);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [editingFAQ, setEditingFAQ] = useState(null); // index of FAQ being edited
+  const [editValues, setEditValues] = useState({});
+  const fileInputRef = useRef(null);
+
+  // ── helpers ──────────────────────────────────────────────
+  const s = {
+    card: {
+      background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05)', padding: 24, marginBottom: 20,
+    },
+    btnPrimary: {
+      padding: '10px 22px', borderRadius: 10, background: 'var(--color-primary, #4f46e5)',
+      color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer',
+      display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+    },
+    btnSecondary: {
+      padding: '10px 18px', borderRadius: 10, background: '#f1f5f9', color: '#475569',
+      fontWeight: 600, fontSize: 14, border: '1px solid #e2e8f0', cursor: 'pointer',
+      whiteSpace: 'nowrap',
+    },
+    spinner: {
+      width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)',
+      borderTopColor: 'white', animation: 'spin 0.7s linear infinite', display: 'inline-block',
+    },
+    kwTag: {
+      display: 'inline-block', padding: '2px 8px', borderRadius: 99,
+      background: '#e0e7ff', color: '#4f46e5', fontSize: 11, marginRight: 4, marginTop: 4,
+    },
+    checkbox: (checked) => ({
+      width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+      border: `2px solid ${checked ? 'var(--color-primary, #4f46e5)' : '#d1d5db'}`,
+      background: checked ? 'var(--color-primary, #4f46e5)' : 'white',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms',
+    }),
+  };
+
+  const CheckIcon = () => (
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+      <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
+  // ── file reading ─────────────────────────────────────────
+  const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result); // full data URL
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const addFiles = async (fileList) => {
+    const valid = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    if (valid.length === 0) { setError('Please upload image files (PNG, JPG, GIF, WebP).'); return; }
+    setError(null);
+    const loaded = await Promise.all(
+      valid.map(async (file) => ({
+        file,
+        name: file.name,
+        dataUrl: await readFileAsBase64(file),
+      }))
+    );
+    setImages(prev => [...prev, ...loaded]);
+  };
+
+  const handleFileChange = (e) => { if (e.target.files?.length) addFiles(e.target.files); };
+  const handleDrop = (e) => {
+    e.preventDefault(); setIsDragOver(false);
+    if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+  };
+  const removeImage = (idx) => setImages(prev => prev.filter((_, i) => i !== idx));
+
+  // ── Claude Vision extraction ─────────────────────────────
+  const extractFAQsFromImages = async () => {
+    if (images.length === 0) { setError('Please add at least one image.'); return; }
+    setError(null);
+    setStep(IMG_STEPS.PROCESSING);
+
+    const allFAQs = [];
+    const seen = new Set();
+
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      setProgressMsg(`Analysing image ${i + 1} of ${images.length}: ${img.name}…`);
+
+      try {
+        // Convert data URL to base64 only (strip the "data:image/xxx;base64," prefix)
+        const [header, base64Data] = img.dataUrl.split(',');
+        const mediaType = header.match(/data:(.*);base64/)?.[1] || 'image/png';
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            system: `You are an expert at extracting FAQ content from images and screenshots.
+Your job is to identify every question-and-answer pair visible in the image.
+Respond ONLY with a valid JSON array — no preamble, no markdown fences, no extra text.
+Each element must have exactly these fields:
+  "question"  – the full question text (string)
+  "answer"    – the complete answer text (string)
+  "keywords"  – 3-6 relevant lowercase keywords derived from the Q&A (array of strings)
+
+If the image contains no FAQ content, return an empty array: []
+Never include anything outside the JSON array.`,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image',
+                    source: { type: 'base64', media_type: mediaType, data: base64Data },
+                  },
+                  {
+                    type: 'text',
+                    text: 'Extract all FAQ question-and-answer pairs from this image as a JSON array.',
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData?.error?.message || `API error ${response.status}`);
+        }
+
+        const data = await response.json();
+        const rawText = data.content?.find(b => b.type === 'text')?.text?.trim() || '[]';
+
+        // Strip markdown fences if model adds them despite instructions
+        const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        let parsed;
+        try { parsed = JSON.parse(cleaned); } catch { parsed = []; }
+
+        if (!Array.isArray(parsed)) parsed = [];
+
+        for (const faq of parsed) {
+          if (!faq.question || !faq.answer) continue;
+          const key = faq.question.toLowerCase().slice(0, 80);
+          if (!seen.has(key)) {
+            seen.add(key);
+            allFAQs.push({ ...faq, _source: img.name, keywords: faq.keywords || [] });
+          }
+        }
+      } catch (err) {
+        // Show error but continue with other images
+        setError(`Error on "${img.name}": ${err.message}`);
+      }
+    }
+
+    setProgressMsg('');
+
+    if (allFAQs.length === 0) {
+      setError('No FAQ content was found in the uploaded images. Make sure the images contain visible question-and-answer pairs.');
+      setStep(IMG_STEPS.IDLE);
+      return;
+    }
+
+    setExtractedFAQs(allFAQs);
+    setSelectedFAQIds(new Set(allFAQs.map((_, i) => i)));
+    setStep(IMG_STEPS.PREVIEW);
+  };
+
+  // ── inline editing ───────────────────────────────────────
+  const startEdit = (idx, faq) => {
+    setEditingFAQ(idx);
+    setEditValues({ question: faq.question, answer: faq.answer, keywords: (faq.keywords || []).join(', ') });
+  };
+  const cancelEdit = () => { setEditingFAQ(null); setEditValues({}); };
+  const saveEdit = (idx) => {
+    setExtractedFAQs(prev => prev.map((faq, i) => i !== idx ? faq : {
+      ...faq,
+      question: editValues.question,
+      answer: editValues.answer,
+      keywords: editValues.keywords.split(',').map(k => k.trim()).filter(Boolean),
+    }));
+    cancelEdit();
+  };
+  const deleteExtracted = (idx) => {
+    setExtractedFAQs(prev => prev.filter((_, i) => i !== idx));
+    setSelectedFAQIds(prev => { const n = new Set(prev); n.delete(idx); return new Set([...n].map(id => id > idx ? id - 1 : id)); });
+  };
+
+  // ── selection helpers ────────────────────────────────────
+  const toggleFAQ = (idx) => setSelectedFAQIds(prev => {
+    const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n;
+  });
+  const selectAll = () => setSelectedFAQIds(new Set(extractedFAQs.map((_, i) => i)));
+  const deselectAll = () => setSelectedFAQIds(new Set());
+
+  // ── save to Supabase ─────────────────────────────────────
+  const handleSave = async () => {
+    const toSave = extractedFAQs.filter((_, i) => selectedFAQIds.has(i));
+    if (toSave.length === 0) { setError('Select at least one FAQ to save.'); return; }
+    setError(null);
+    setStep(IMG_STEPS.SAVING);
+    try {
+      const result = await uploadFAQsToServer(toSave, saveMode === 'replace');
+      setSavedCount(result.added ?? toSave.length);
+      setStep(IMG_STEPS.DONE);
+    } catch (err) {
+      setError('Save failed: ' + err.message);
+      setStep(IMG_STEPS.PREVIEW);
+    }
+  };
+
+  // ── reset ────────────────────────────────────────────────
+  const handleReset = () => {
+    setStep(IMG_STEPS.IDLE);
+    setImages([]);
+    setExtractedFAQs([]);
+    setSelectedFAQIds(new Set());
+    setError(null);
+    setProgressMsg('');
+    setSavedCount(0);
+    setEditingFAQ(null);
+    setEditValues({});
+  };
+
+  // ────────────────────────────────────────────────────────
+  // RENDER
+  // ────────────────────────────────────────────────────────
+  return (
+    <div>
+      {/* Header */}
+      <div className="section-header">
+        <h2 className="section-title">🖼️ Image FAQ Extractor</h2>
+        <p className="section-subtitle">
+          Upload screenshots or photos of FAQ pages · Claude Vision extracts every Q&amp;A pair · Review &amp; save to your knowledge base
+        </p>
+      </div>
+
+      {error && (
+        <div className="alert alert--error" style={{ marginBottom: 16 }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* ── IDLE / Upload step ── */}
+      {(step === IMG_STEPS.IDLE) && (
+        <>
+          {/* How it works banner */}
+          <div style={{
+            ...s.card,
+            background: 'linear-gradient(135deg, #faf5ff, #eff6ff)',
+            border: '1px solid #ddd6fe',
+            padding: '18px 24px',
+          }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6', marginBottom: 10 }}>
+              ✨ How Image Extraction works
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              {[
+                { icon: '1️⃣', title: 'Upload images', desc: 'Add PNG, JPG, WebP, or GIF screenshots of any FAQ page' },
+                { icon: '2️⃣', title: 'Claude reads them', desc: 'Claude Vision scans every visible Q&A pair, accordion, table, and list' },
+                { icon: '3️⃣', title: 'Review & edit', desc: 'Inspect extracted FAQs, fix mistakes, or remove irrelevant entries' },
+                { icon: '4️⃣', title: 'Save to chatbot', desc: 'Selected FAQs are saved to Supabase and immediately active in your chatbot' },
+              ].map(item => (
+                <div key={item.icon} style={{ display: 'flex', gap: 8 }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: '#5b21b6' }}>{item.title}</p>
+                    <p style={{ fontSize: 12, color: '#7c3aed', lineHeight: 1.4 }}>{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Drop zone */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              border: `2px dashed ${isDragOver ? '#7c3aed' : '#c4b5fd'}`,
+              borderRadius: 16,
+              padding: '40px 24px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: isDragOver ? '#faf5ff' : '#fdfbff',
+              transition: 'all 200ms',
+              marginBottom: 20,
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+            <div style={{ fontSize: 40, marginBottom: 10 }}>🖼️</div>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#4c1d95', marginBottom: 4 }}>
+              {isDragOver ? 'Drop images here!' : 'Click or drag & drop images here'}
+            </p>
+            <p style={{ fontSize: 13, color: '#7c3aed' }}>
+              Supports PNG, JPG, WebP, GIF · Multiple files allowed
+            </p>
+          </div>
+
+          {/* Thumbnail preview of added images */}
+          {images.length > 0 && (
+            <div style={s.card}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                  {images.length} image{images.length !== 1 ? 's' : ''} ready
+                </p>
+                <button style={{ ...s.btnSecondary, padding: '5px 12px', fontSize: 12 }} onClick={() => fileInputRef.current?.click()}>
+                  + Add more
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                {images.map((img, idx) => (
+                  <div key={idx} style={{ position: 'relative', width: 100 }}>
+                    <img
+                      src={img.dataUrl}
+                      alt={img.name}
+                      style={{
+                        width: 100, height: 80, objectFit: 'cover',
+                        borderRadius: 10, border: '2px solid #e0e7ff', display: 'block',
+                      }}
+                    />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                      style={{
+                        position: 'absolute', top: -6, right: -6,
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: '#ef4444', color: 'white',
+                        border: 'none', cursor: 'pointer', fontSize: 12,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontWeight: 700, lineHeight: 1,
+                      }}
+                    >×</button>
+                    <p style={{
+                      fontSize: 10, color: '#64748b', marginTop: 4,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      maxWidth: 100,
+                    }}>{img.name}</p>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  style={{ ...s.btnPrimary, background: '#7c3aed' }}
+                  onClick={extractFAQsFromImages}
+                >
+                  ✨ Extract FAQs from {images.length} image{images.length !== 1 ? 's' : ''}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── PROCESSING step ── */}
+      {step === IMG_STEPS.PROCESSING && (
+        <div style={{ ...s.card, textAlign: 'center', padding: '56px 24px' }}>
+          <div style={{ fontSize: 44, marginBottom: 12 }}>
+            <span style={{ display: 'inline-block', animation: 'spin 2s linear infinite' }}>🔍</span>
+          </div>
+          <p style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
+            Claude is reading your images…
+          </p>
+          <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
+            {progressMsg || 'Analysing FAQ content…'}
+          </p>
+          <div style={{ background: '#e2e8f0', borderRadius: 99, height: 6, maxWidth: 320, margin: '0 auto' }}>
+            <div style={{
+              background: '#7c3aed', borderRadius: 99, height: '100%',
+              width: '60%',
+              animation: 'indeterminate 1.5s ease-in-out infinite',
+            }} />
+          </div>
+          <style>{`
+            @keyframes indeterminate {
+              0%   { width: 10%; margin-left: 0%; }
+              50%  { width: 50%; margin-left: 30%; }
+              100% { width: 10%; margin-left: 90%; }
+            }
+            @keyframes spin { to { transform: rotate(360deg); } }
+          `}</style>
+        </div>
+      )}
+
+      {/* ── PREVIEW / SAVING step ── */}
+      {(step === IMG_STEPS.PREVIEW || step === IMG_STEPS.SAVING) && (
+        <div>
+          {/* Summary bar */}
+          <div style={{ ...s.card, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 20 }}>🖼️</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>
+                Scanned {images.length} image{images.length !== 1 ? 's' : ''}
+              </p>
+              <p style={{ fontSize: 12, color: '#64748b' }}>
+                Found <strong>{extractedFAQs.length}</strong> FAQ{extractedFAQs.length !== 1 ? 's' : ''} ·{' '}
+                <strong style={{ color: '#7c3aed' }}>{selectedFAQIds.size}</strong> selected to save
+              </p>
+            </div>
+            <button style={s.btnSecondary} onClick={handleReset}>← New images</button>
+          </div>
+
+          {/* Save mode + action bar */}
+          <div style={{ ...s.card, padding: '14px 18px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Save mode:</span>
+            {['append', 'replace'].map(m => (
+              <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, fontWeight: saveMode === m ? 700 : 400, color: saveMode === m ? '#7c3aed' : '#64748b' }}>
+                <input type="radio" name="imgSaveMode" value={m} checked={saveMode === m} onChange={() => setSaveMode(m)} style={{ accentColor: '#7c3aed' }} />
+                {m === 'append' ? '➕ Append' : '🔄 Replace all'}
+              </label>
+            ))}
+            <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+              <button style={{ ...s.btnSecondary, padding: '6px 12px', fontSize: 12 }} onClick={selectAll}>✅ All</button>
+              <button style={{ ...s.btnSecondary, padding: '6px 12px', fontSize: 12 }} onClick={deselectAll}>☐ None</button>
+              <button
+                style={{
+                  ...s.btnPrimary,
+                  background: '#7c3aed',
+                  opacity: step === IMG_STEPS.SAVING || selectedFAQIds.size === 0 ? 0.7 : 1,
+                  cursor: step === IMG_STEPS.SAVING || selectedFAQIds.size === 0 ? 'not-allowed' : 'pointer',
+                }}
+                onClick={handleSave}
+                disabled={step === IMG_STEPS.SAVING || selectedFAQIds.size === 0}
+              >
+                {step === IMG_STEPS.SAVING
+                  ? <><span style={s.spinner} /> Saving…</>
+                  : `💾 Save ${selectedFAQIds.size} FAQ${selectedFAQIds.size !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+
+          {/* FAQ list */}
+          <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                Extracted FAQs — Click to select · ✏️ to edit
+              </span>
+              <span style={{ fontSize: 12, padding: '2px 10px', background: '#f5f3ff', borderRadius: 99, color: '#7c3aed', fontWeight: 600 }}>
+                {extractedFAQs.length} found
+              </span>
+            </div>
+
+            {extractedFAQs.map((faq, idx) => {
+              const checked = selectedFAQIds.has(idx);
+              const isEditing = editingFAQ === idx;
+
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    borderBottom: '1px solid #f1f5f9',
+                    background: isEditing ? '#faf5ff' : checked ? '#fafbff' : 'white',
+                  }}
+                >
+                  {isEditing ? (
+                    /* ── Edit mode ── */
+                    <div style={{ padding: '14px 16px' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        ✏️ Editing FAQ #{idx + 1}
+                      </p>
+                      <div style={{ marginBottom: 8 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Question</label>
+                        <input
+                          value={editValues.question}
+                          onChange={e => setEditValues(v => ({ ...v, question: e.target.value }))}
+                          style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: 8 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Answer</label>
+                        <textarea
+                          value={editValues.answer}
+                          onChange={e => setEditValues(v => ({ ...v, answer: e.target.value }))}
+                          style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', minHeight: 80, resize: 'vertical', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Keywords <span style={{ fontWeight: 400, color: '#94a3b8' }}>(comma-separated)</span></label>
+                        <input
+                          value={editValues.keywords}
+                          onChange={e => setEditValues(v => ({ ...v, keywords: e.target.value }))}
+                          style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => saveEdit(idx)} style={{ ...s.btnPrimary, background: '#7c3aed', padding: '7px 16px', fontSize: 13 }}>✓ Save</button>
+                        <button onClick={cancelEdit} style={{ ...s.btnSecondary, padding: '7px 14px', fontSize: 13 }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── View mode ── */
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px' }}>
+                      <div
+                        style={{ ...s.checkbox(checked), marginTop: 2, cursor: 'pointer' }}
+                        onClick={() => toggleFAQ(idx)}
+                      >
+                        {checked && <CheckIcon />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => toggleFAQ(idx)}>
+                        {faq._source && (
+                          <p style={{ fontSize: 10, color: '#a78bfa', marginBottom: 3 }}>
+                            📄 from {faq._source}
+                          </p>
+                        )}
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
+                          Q: {faq.question}
+                        </p>
+                        <p style={{
+                          fontSize: 12, color: '#64748b', lineHeight: 1.5, marginBottom: 6,
+                          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                        }}>
+                          A: {faq.answer}
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {(faq.keywords || []).slice(0, 6).map(kw => (
+                            <span key={kw} style={s.kwTag}>{kw}</span>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startEdit(idx, faq); }}
+                          title="Edit this FAQ"
+                          style={{
+                            padding: '4px 10px', borderRadius: 8, border: '1px solid #ddd6fe',
+                            background: '#f5f3ff', color: '#7c3aed', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                          }}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteExtracted(idx); }}
+                          title="Remove this FAQ"
+                          style={{
+                            padding: '4px 10px', borderRadius: 8, border: '1px solid #fecaca',
+                            background: '#fef2f2', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── DONE step ── */}
+      {step === IMG_STEPS.DONE && (
+        <div style={{ ...s.card, textAlign: 'center', padding: '56px 24px' }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+          <h3 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
+            FAQs saved successfully!
+          </h3>
+          <p style={{ fontSize: 15, color: '#64748b', marginBottom: 6 }}>
+            <strong>{savedCount}</strong> FAQ{savedCount !== 1 ? 's' : ''} extracted from your images are now live in your chatbot's knowledge base.
+          </p>
+          <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 28 }}>
+            Your chatbot will use these answers automatically on the next query.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button style={{ ...s.btnPrimary, background: '#7c3aed' }} onClick={handleReset}>
+              🖼️ Extract from more images
+            </button>
+            <button style={s.btnSecondary} onClick={() => window._adminSwitchTab && window._adminSwitchTab('faqs')}>
+              📚 View FAQ Manager
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // Main AdminDashboard Component
 // ============================================================
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('analytics');
-const navigate = useNavigate();
+  const navigate = useNavigate();
 
   useEffect(() => {
     window._adminSwitchTab = (tab) => setActiveTab(tab);
@@ -1183,7 +1752,8 @@ const navigate = useNavigate();
     { id: 'analytics', label: '📊 Analytics' },
     { id: 'faqs', label: '📚 FAQ Manager' },
     { id: 'crawler', label: '🌐 Web Crawler' },
-    { id: 'autocrawl', label: '🤖 Auto-Crawl' },   // NEW
+    { id: 'autocrawl', label: '🤖 Auto-Crawl' },
+    { id: 'imageextract', label: '🖼️ Image Extractor' },  // NEW
   ];
 
   return (
@@ -1191,7 +1761,7 @@ const navigate = useNavigate();
       <nav className="admin-nav">
         <div className="admin-nav__brand" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
           <div className="admin-nav__logo">🤖</div>
-          <div >
+          <div>
             <div className="admin-nav__title">ChatBot Admin</div>
             <div className="admin-nav__subtitle">Dashboard</div>
           </div>
@@ -1213,6 +1783,7 @@ const navigate = useNavigate();
         {activeTab === 'faqs' && <FAQManagerTab />}
         {activeTab === 'crawler' && <WebCrawlerTab />}
         {activeTab === 'autocrawl' && <AutoCrawlTab />}
+        {activeTab === 'imageextract' && <ImageExtractTab />}
       </main>
     </div>
   );
