@@ -145,250 +145,630 @@ function AnalyticsTab() {
 }
 
 // ============================================================
-// FAQ Manager Tab
+// FAQ Manager Tab  (merged with Image Extractor)
 // ============================================================
-function FAQManagerTab() {
-  const [faqs, setFaqs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [alert, setAlert] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadMode, setUploadMode] = useState('append');
-  const fileInputRef = useRef(null);
+const IMG_STEPS = { IDLE: 'idle', PROCESSING: 'processing', PREVIEW: 'preview', SAVING: 'saving', DONE: 'done' };
 
+function FAQManagerTab() {
+  // ── sub-tab state ────────────────────────────────────────
+  const [subTab, setSubTab] = useState('upload'); // 'upload' | 'image'
+
+  // ── shared alert ─────────────────────────────────────────
+  const [alert, setAlert] = useState(null);
   const showAlert = useCallback((type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 6000);
   }, []);
 
+  // ── FAQ list (shared, reloaded after any save) ───────────
+  const [faqs, setFaqs] = useState([]);
+  const [loadingFaqs, setLoadingFaqs] = useState(true);
   const loadFAQs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const list = await getAdminFAQs();
-      setFaqs(list);
-    } catch (err) {
-      showAlert('error', 'Failed to load FAQs: ' + err.message);
-      setFaqs([]);
-    } finally {
-      setLoading(false);
-    }
+    setLoadingFaqs(true);
+    try { setFaqs(await getAdminFAQs()); }
+    catch (err) { showAlert('error', 'Failed to load FAQs: ' + err.message); setFaqs([]); }
+    finally { setLoadingFaqs(false); }
   }, [showAlert]);
-
   useEffect(() => { loadFAQs(); }, [loadFAQs]);
+
+  // ── delete ───────────────────────────────────────────────
+  const handleDelete = async (id, question) => {
+    if (!window.confirm(`Delete FAQ: "${question}"?`)) return;
+    try { await deleteFAQ(id); showAlert('success', 'FAQ deleted.'); loadFAQs(); }
+    catch (err) { showAlert('error', 'Delete failed: ' + err.message); }
+  };
+
+  // ── shared styles ────────────────────────────────────────
+  const card = { background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', padding: 24, marginBottom: 20 };
+  const btnPrimary = (bg) => ({ padding: '10px 22px', borderRadius: 10, background: bg || 'var(--color-primary,#4f46e5)', color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 });
+  const btnSecondary = { padding: '8px 16px', borderRadius: 10, background: '#f1f5f9', color: '#475569', fontWeight: 600, fontSize: 13, border: '1px solid #e2e8f0', cursor: 'pointer' };
+  const kwTag = { display: 'inline-block', padding: '2px 8px', borderRadius: 99, background: '#e0e7ff', color: '#4f46e5', fontSize: 11, marginRight: 4, marginTop: 2 };
+  const spinner = { width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', animation: 'spin 0.7s linear infinite', display: 'inline-block' };
+
+  // ════════════════════════════════════════════════════════
+  // FILE UPLOAD section
+  // ════════════════════════════════════════════════════════
+  const [uploading, setUploading] = useState(false);
+  const [uploadMode, setUploadMode] = useState('append');
+  const fileInputRef = useRef(null);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploading(true);
     const filename = file.name.toLowerCase();
-
     try {
       const isReplace = uploadMode === 'replace';
-
       if (filename.endsWith('.pdf')) {
         const formData = new FormData();
         formData.append('file', file);
-        const url = `/api/admin/faqs/upload${isReplace ? '?replace=true' : ''}`;
-        const res = await fetch(url, { method: 'POST', body: formData });
+        const res = await fetch(`/api/admin/faqs/upload${isReplace ? '?replace=true' : ''}`, { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Upload failed');
-        showAlert('success', data.message || 'PDF uploaded successfully!');
-        loadFAQs();
-        return;
+        showAlert('success', data.message || 'PDF uploaded!');
+        loadFAQs(); return;
       }
-
       const text = await file.text();
       let faqArray;
-
       if (filename.endsWith('.json')) {
-        let parsed;
-        try { parsed = JSON.parse(text); } catch { throw new Error('Invalid JSON file.'); }
+        let parsed; try { parsed = JSON.parse(text); } catch { throw new Error('Invalid JSON.'); }
         faqArray = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.faqs) ? parsed.faqs : null;
         if (!faqArray) throw new Error('JSON must be an array or { faqs: [] }.');
       } else if (filename.endsWith('.csv')) {
         faqArray = parseCSVClient(text);
-      } else {
-        throw new Error('Unsupported file type. Please upload a .json, .csv, or .pdf file.');
-      }
-
-      if (!faqArray || faqArray.length === 0) throw new Error('No valid FAQ entries found in the file.');
-
+      } else { throw new Error('Unsupported file type. Use .json, .csv, or .pdf.'); }
+      if (!faqArray?.length) throw new Error('No valid FAQ entries found.');
       const result = await uploadFAQsToServer(faqArray, isReplace);
-      showAlert('success', result.message || `Successfully uploaded ${faqArray.length} FAQs!`);
+      showAlert('success', result.message || `Uploaded ${faqArray.length} FAQs!`);
       loadFAQs();
-    } catch (err) {
-      showAlert('error', 'Upload failed: ' + err.message);
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+    } catch (err) { showAlert('error', 'Upload failed: ' + err.message); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
-  const handleDelete = async (id, question) => {
-    if (!window.confirm(`Delete FAQ: "${question}"?`)) return;
+  // ════════════════════════════════════════════════════════
+  // IMAGE EXTRACTOR section
+  // ════════════════════════════════════════════════════════
+  const [imgStep, setImgStep] = useState(IMG_STEPS.IDLE);
+  const [images, setImages] = useState([]);
+  const [extractedFAQs, setExtractedFAQs] = useState([]);
+  const [selectedFAQIds, setSelectedFAQIds] = useState(new Set());
+  const [imgSaveMode, setImgSaveMode] = useState('append');
+  const [imgError, setImgError] = useState(null);
+  const [progressMsg, setProgressMsg] = useState('');
+  const [savedCount, setSavedCount] = useState(0);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [editingFAQ, setEditingFAQ] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const imgFileInputRef = useRef(null);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('_img_extract_key') || '';
+    if (saved) { window.__GEMINI_API_KEY__ = saved; setApiKeyInput(saved); setApiKeySaved(true); }
+  }, []);
+
+  const saveApiKey = () => {
+    const key = apiKeyInput.trim();
+    if (key.length < 10) { setImgError('Please enter a valid Gemini API key.'); return; }
+    window.__GEMINI_API_KEY__ = key;
+    sessionStorage.setItem('_img_extract_key', key);
+    setApiKeySaved(true); setImgError(null);
+  };
+  const clearApiKey = () => {
+    window.__GEMINI_API_KEY__ = '';
+    sessionStorage.removeItem('_img_extract_key');
+    setApiKeyInput(''); setApiKeySaved(false);
+  };
+
+  const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = (e) => resolve(e.target.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+
+  const addImageFiles = async (fileList) => {
+    const valid = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    if (!valid.length) { setImgError('Please upload image files (PNG, JPG, WebP, GIF).'); return; }
+    setImgError(null);
+    const loaded = await Promise.all(valid.map(async f => ({ file: f, name: f.name, dataUrl: await readFileAsBase64(f) })));
+    setImages(prev => [...prev, ...loaded]);
+  };
+
+  const removeImage = (idx) => setImages(prev => prev.filter((_, i) => i !== idx));
+
+  const extractFAQsFromImages = async () => {
+    if (!images.length) { setImgError('Please add at least one image.'); return; }
+    const apiKey = window.__GEMINI_API_KEY__ || apiKeyInput.trim();
+    if (!apiKey) { setImgError('❌ Enter your Gemini API key above and click Save Key first.'); return; }
+
+    setImgError(null);
+    setImgStep(IMG_STEPS.PROCESSING);
+
+    const allFAQs = [];
+    const seen = new Set();
+    const imageErrors = [];
+
+    const PROMPT = `You are an FAQ extraction expert. Extract EVERY question visible in this image.
+IMPORTANT: If this is a collapsed accordion FAQ list (only questions visible, answers hidden), still extract all questions and write helpful answers based on the question and any visible context.
+Respond ONLY with a valid JSON array, no markdown, no extra text.
+Each item: { "question": "...", "answer": "...", "keywords": ["kw1","kw2"], "answerSource": "extracted" or "inferred" }
+Rules:
+- NEVER skip a question
+- NEVER leave answer empty — infer from context if hidden
+- Return [] only if image has zero FAQ content`;
+
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      setProgressMsg(`Analysing image ${i + 1} of ${images.length}: ${img.name}…`);
+      try {
+        const [header, base64Data] = img.dataUrl.split(',');
+        const mimeType = header.match(/data:(.*);base64/)?.[1] || 'image/png';
+
+        // ── Gemini Vision API with auto-retry ─────────────
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const geminiBody = JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: mimeType, data: base64Data } },
+              { text: PROMPT },
+            ],
+          }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
+        });
+
+        let response;
+        const RETRY_DELAYS = [8000, 15000, 25000, 40000];
+        for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+          response = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: geminiBody,
+          });
+          if (response.status !== 429) break;
+          if (attempt === RETRY_DELAYS.length) throw new Error('Rate limit persists after retries. Please wait 1 minute and try again.');
+          const waitSec = RETRY_DELAYS[attempt] / 1000;
+          setProgressMsg(`⏳ Rate limit hit — waiting ${waitSec}s before retry ${attempt + 1}/${RETRY_DELAYS.length}…`);
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+          setProgressMsg(`Analysing image ${i + 1} of ${images.length}: ${img.name}…`);
+        }
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          const msg = errData?.error?.message || `API error ${response.status}`;
+          if (response.status === 400 && msg.toLowerCase().includes('api_key')) throw new Error('Invalid Gemini API key. Check your key at aistudio.google.com.');
+          if (response.status === 403) throw new Error('API key does not have permission. Enable Gemini API at console.cloud.google.com.');
+          throw new Error(msg);
+        }
+
+        const data = await response.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '[]';
+        const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        let parsed; try { parsed = JSON.parse(cleaned); } catch { parsed = []; }
+        if (!Array.isArray(parsed)) parsed = [];
+
+        for (const faq of parsed) {
+          if (!faq.question?.trim()) continue;
+          if (!faq.answer?.trim()) { faq.answer = 'Answer not visible — please fill in manually.'; faq.answerSource = 'placeholder'; }
+          const key = faq.question.toLowerCase().slice(0, 80);
+          if (!seen.has(key)) {
+            seen.add(key);
+            allFAQs.push({ ...faq, _source: img.name, keywords: faq.keywords || [], answerSource: faq.answerSource || 'extracted' });
+          }
+        }
+      } catch (err) {
+        imageErrors.push(`"${img.name}": ${err.message}`);
+        if (err.message.includes('API key') || err.message.includes('permission')) {
+          setProgressMsg(''); setImgError('❌ ' + err.message); setImgStep(IMG_STEPS.IDLE); return;
+        }
+      }
+    }
+
+    setProgressMsg('');
+    if (!allFAQs.length && imageErrors.length) { setImgError('Extraction failed:\n' + imageErrors.join('\n')); setImgStep(IMG_STEPS.IDLE); return; }
+    if (!allFAQs.length) { setImgError('No FAQ content found. Make sure images contain questions or Q&A pairs.'); setImgStep(IMG_STEPS.IDLE); return; }
+
+    setExtractedFAQs(allFAQs);
+    setSelectedFAQIds(new Set(allFAQs.map((_, i) => i)));
+    setImgStep(IMG_STEPS.PREVIEW);
+  };
+
+  const toggleFAQ = (idx) => setSelectedFAQIds(prev => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n; });
+  const startEdit = (idx, faq) => { setEditingFAQ(idx); setEditValues({ question: faq.question, answer: faq.answer, keywords: (faq.keywords || []).join(', ') }); };
+  const cancelEdit = () => { setEditingFAQ(null); setEditValues({}); };
+  const saveEdit = (idx) => {
+    setExtractedFAQs(prev => prev.map((f, i) => i !== idx ? f : { ...f, question: editValues.question, answer: editValues.answer, keywords: editValues.keywords.split(',').map(k => k.trim()).filter(Boolean) }));
+    cancelEdit();
+  };
+  const deleteExtracted = (idx) => {
+    setExtractedFAQs(prev => prev.filter((_, i) => i !== idx));
+    setSelectedFAQIds(prev => new Set([...prev].filter(id => id !== idx).map(id => id > idx ? id - 1 : id)));
+  };
+
+  const handleImgSave = async () => {
+    const toSave = extractedFAQs.filter((_, i) => selectedFAQIds.has(i));
+    if (!toSave.length) { setImgError('Select at least one FAQ to save.'); return; }
+    setImgError(null); setImgStep(IMG_STEPS.SAVING);
     try {
-      await deleteFAQ(id);
-      showAlert('success', 'FAQ deleted successfully.');
+      const result = await uploadFAQsToServer(toSave, imgSaveMode === 'replace');
+      setSavedCount(result.added ?? toSave.length);
+      showAlert('success', `✅ ${result.added ?? toSave.length} FAQs from image saved to knowledge base!`);
       loadFAQs();
-    } catch (err) {
-      showAlert('error', 'Delete failed: ' + err.message);
-    }
+      setImgStep(IMG_STEPS.DONE);
+    } catch (err) { setImgError('Save failed: ' + err.message); setImgStep(IMG_STEPS.PREVIEW); }
   };
 
+  const handleImgReset = () => {
+    setImgStep(IMG_STEPS.IDLE); setImages([]); setExtractedFAQs([]);
+    setSelectedFAQIds(new Set()); setImgError(null); setProgressMsg(''); setSavedCount(0);
+    setEditingFAQ(null); setEditValues({});
+  };
+
+  const CheckIcon = () => (
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+      <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+  const chkStyle = (checked) => ({ width: 18, height: 18, borderRadius: 4, flexShrink: 0, border: `2px solid ${checked ? '#7c3aed' : '#d1d5db'}`, background: checked ? '#7c3aed' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms', cursor: 'pointer' });
+
+  // ════════════════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════════════════
   return (
     <div>
+      {/* Header */}
       <div className="section-header">
-        <h2 className="section-title">FAQ Manager</h2>
-        <p className="section-subtitle">Upload JSON, CSV, or PDF · Choose Append or Replace mode</p>
+        <h2 className="section-title">📚 FAQ Manager</h2>
+        <p className="section-subtitle">Upload files · Extract from images · Manage your knowledge base</p>
       </div>
 
+      {/* Sub-tab switcher */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#f1f5f9', borderRadius: 12, padding: 4 }}>
+        {[
+          { id: 'upload', icon: '📁', label: 'File Upload' },
+          { id: 'image', icon: '🖼️', label: 'Image Extractor' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)} style={{
+            flex: 1, padding: '10px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+            background: subTab === t.id ? 'white' : 'transparent',
+            color: subTab === t.id ? '#0f172a' : '#64748b',
+            boxShadow: subTab === t.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+            transition: 'all 150ms',
+          }}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Shared alert */}
       {alert && (
-        <div className={`alert alert--${alert.type}`}>
+        <div className={`alert alert--${alert.type}`} style={{ marginBottom: 16 }}>
           {alert.type === 'success' ? '✅' : '⚠️'} {alert.message}
         </div>
       )}
 
-      <div style={{
-        display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center',
-        background: 'white', border: '1px solid #e2e8f0', borderRadius: 12,
-        padding: '12px 16px',
-      }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Upload mode:</span>
-        {['append', 'replace'].map(mode => (
-          <label key={mode} style={{
-            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-            fontSize: 13, fontWeight: uploadMode === mode ? 700 : 400,
-            color: uploadMode === mode ? 'var(--color-primary)' : '#64748b',
-          }}>
-            <input
-              type="radio"
-              name="uploadMode"
-              value={mode}
-              checked={uploadMode === mode}
-              onChange={() => setUploadMode(mode)}
-              style={{ accentColor: 'var(--color-primary)' }}
-            />
-            {mode === 'append' ? '➕ Append (add to existing)' : '🔄 Replace (wipe & reload)'}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* SUB-TAB: FILE UPLOAD                              */}
+      {/* ══════════════════════════════════════════════════ */}
+      {subTab === 'upload' && (
+        <div>
+          {/* Upload mode */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', background: 'white', border: '1px solid #e2e8f0', borderRadius: 12, padding: '12px 16px' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Upload mode:</span>
+            {['append', 'replace'].map(mode => (
+              <label key={mode} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, fontWeight: uploadMode === mode ? 700 : 400, color: uploadMode === mode ? 'var(--color-primary)' : '#64748b' }}>
+                <input type="radio" name="uploadMode" value={mode} checked={uploadMode === mode} onChange={() => setUploadMode(mode)} style={{ accentColor: 'var(--color-primary)' }} />
+                {mode === 'append' ? '➕ Append' : '🔄 Replace'}
+              </label>
+            ))}
+            <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 'auto' }}>
+              {uploadMode === 'append' ? 'Adds to existing FAQs' : '⚠️ Deletes all current FAQs first'}
+            </span>
+          </div>
+
+          {/* Drop zone */}
+          <label className="upload-area" htmlFor="faq-upload">
+            <span className="upload-area__icon">{uploading ? '⏳' : '📁'}</span>
+            <p className="upload-area__title">{uploading ? 'Uploading to Supabase...' : 'Click to upload FAQ file (JSON, CSV, or PDF)'}</p>
+            <p className="upload-area__hint">Accepts .json · .csv · .pdf · Max 10MB · {uploadMode === 'append' ? 'Appends' : 'Replaces'}</p>
+            <input id="faq-upload" ref={fileInputRef} type="file" accept=".json,.csv,.pdf" onChange={handleFileUpload} disabled={uploading} />
           </label>
-        ))}
-        <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 'auto' }}>
-          {uploadMode === 'append'
-            ? 'New FAQs will be added alongside existing ones'
-            : '⚠️ This will DELETE all current FAQs first'}
-        </span>
-      </div>
 
-      <label className="upload-area" htmlFor="faq-upload">
-        <span className="upload-area__icon">{uploading ? '⏳' : '📁'}</span>
-        <p className="upload-area__title">
-          {uploading ? 'Uploading to Supabase...' : 'Click to upload FAQ file (JSON, CSV, or PDF)'}
-        </p>
-        <p className="upload-area__hint">
-          Accepts .json · .csv · .pdf · Max 10MB ·{' '}
-          {uploadMode === 'append' ? 'Appends to existing FAQs' : 'Replaces entire FAQ database'}
-        </p>
-        <input
-          id="faq-upload"
-          ref={fileInputRef}
-          type="file"
-          accept=".json,.csv,.pdf,application/json,text/csv,application/pdf"
-          onChange={handleFileUpload}
-          disabled={uploading}
-        />
-      </label>
-
-      <div style={{
-        background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12,
-        padding: '12px 16px', marginBottom: 20, fontSize: 12, color: '#64748b',
-        display: 'flex', flexDirection: 'column', gap: 6,
-      }}>
-        <div>
-          <strong style={{ color: '#475569' }}>JSON:</strong>{' '}
-          <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>
-            {'[{ "question": "...", "answer": "...", "keywords": ["kw1"] }]'}
-          </code>
-        </div>
-        <div>
-          <strong style={{ color: '#475569' }}>CSV:</strong>{' '}
-          <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>
-            {'question,answer,keywords (header row required; keywords separated by semicolons)'}
-          </code>
-        </div>
-        <div>
-          <strong style={{ color: '#475569' }}>PDF:</strong>{' '}
-          <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>
-            {'Q: question text A: answer text — or numbered 1. Question\\nAnswer blocks'}
-          </code>
-        </div>
-      </div>
-
-      <div className="faq-table-wrap">
-        <div className="table-header">
-          <span className="table-title">Current FAQ Knowledge Base (Supabase)</span>
-          <span className="table-count">{faqs.length} entries</span>
-        </div>
-
-        {loading ? (
-          <div className="loading-wrap">
-            <div className="loading-spinner" /> Loading FAQs from Supabase...
+          {/* Format hints */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 12, color: '#64748b', display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div><strong style={{ color: '#475569' }}>JSON:</strong> <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>{'[{ "question": "...", "answer": "...", "keywords": [] }]'}</code></div>
+            <div><strong style={{ color: '#475569' }}>CSV:</strong> <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>question,answer,keywords — header row required</code></div>
+            <div><strong style={{ color: '#475569' }}>PDF:</strong> <code style={{ background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>Q: ... A: ... or numbered blocks</code></div>
           </div>
-        ) : faqs.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-state__icon">📭</span>
-            No FAQs found in Supabase. Upload a file above to get started.
-          </div>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}>#</th>
-                <th>Question</th>
-                <th>Keywords</th>
-                <th style={{ width: 80 }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {faqs.map(faq => {
-                const keywords = Array.isArray(faq.keywords) ? faq.keywords : [];
-                return (
-                  <tr key={faq.id}>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{faq.id}</td>
-                    <td><strong>{faq.question}</strong></td>
-                    <td style={{ maxWidth: 200 }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {keywords.slice(0, 4).map(kw => (
-                          <span key={kw} style={{
-                            background: 'var(--color-bg-chat)', padding: '1px 7px',
-                            borderRadius: 'var(--radius-full)', fontSize: 11,
-                            color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)',
-                          }}>{kw}</span>
-                        ))}
-                        {keywords.length > 4 && (
-                          <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                            +{keywords.length - 4} more
-                          </span>
-                        )}
+
+          {/* FAQ Table */}
+          <FAQTable faqs={faqs} loading={loadingFaqs} onDelete={handleDelete} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════ */}
+      {/* SUB-TAB: IMAGE EXTRACTOR                          */}
+      {/* ══════════════════════════════════════════════════ */}
+      {subTab === 'image' && (
+        <div>
+          {imgError && (
+            <div className="alert alert--error" style={{ marginBottom: 16, whiteSpace: 'pre-line' }}>⚠️ {imgError}</div>
+          )}
+
+          {/* ── IDLE ── */}
+          {imgStep === IMG_STEPS.IDLE && (
+            <>
+              {/* API Key Card */}
+              <div style={{ ...card, border: apiKeySaved ? '1px solid #bbf7d0' : '1px solid #fde68a', background: apiKeySaved ? '#f0fdf4' : '#fffbeb', padding: '16px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 15 }}>{apiKeySaved ? '🔑✅' : '🔑'}</span>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: apiKeySaved ? '#065f46' : '#92400e' }}>
+                    {apiKeySaved ? 'Gemini API Key configured' : 'Gemini API Key required (Free)'}
+                  </p>
+                  {apiKeySaved && <span style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', borderRadius: 99, background: '#dcfce7', color: '#166534', fontWeight: 600 }}>Active</span>}
+                </div>
+                {!apiKeySaved ? (
+                  <>
+                    <p style={{ fontSize: 12, color: '#92400e', marginBottom: 10, lineHeight: 1.5 }}>
+                      Get a <strong>free</strong> Gemini API key at{' '}
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: '#d97706', fontWeight: 700 }}>aistudio.google.com/app/apikey</a>
+                      {' '}— no credit card needed. 1,500 free requests/day.
+                    </p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                        <input
+                          type={apiKeyVisible ? 'text' : 'password'}
+                          placeholder="AIza..."
+                          value={apiKeyInput}
+                          onChange={e => setApiKeyInput(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && saveApiKey()}
+                          style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: 8, border: '1.5px solid #fcd34d', fontSize: 13, outline: 'none', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                        />
+                        <button onClick={() => setApiKeyVisible(v => !v)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}>
+                          {apiKeyVisible ? '🙈' : '👁️'}
+                        </button>
                       </div>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => handleDelete(faq.id, faq.question)}
-                        style={{
-                          padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-                          border: '1px solid #fecaca', background: '#fef2f2',
-                          color: 'var(--color-danger)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                        }}
-                      >
-                        Delete
+                      <button onClick={saveApiKey} disabled={!apiKeyInput.trim()} style={{ padding: '8px 18px', borderRadius: 8, background: '#d97706', color: 'white', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>
+                        Save Key
                       </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <code style={{ fontSize: 12, color: '#166534', background: '#dcfce7', padding: '3px 10px', borderRadius: 6, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {apiKeyInput.slice(0, 16)}{'•'.repeat(16)}
+                    </code>
+                    <button onClick={clearApiKey} style={{ padding: '4px 12px', borderRadius: 6, background: 'white', border: '1px solid #fecaca', color: '#dc2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Remove</button>
+                  </div>
+                )}
+              </div>
+
+              {/* How it works */}
+              <div style={{ ...card, background: 'linear-gradient(135deg,#faf5ff,#eff6ff)', border: '1px solid #ddd6fe', padding: '16px 20px' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6', marginBottom: 10 }}>✨ How Image Extraction works</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10 }}>
+                  {[
+                    { icon: '1️⃣', t: 'Upload images', d: 'PNG, JPG, WebP, GIF screenshots of any FAQ page' },
+                    { icon: '2️⃣', t: 'Gemini reads them', d: 'Works with full Q&A pages AND collapsed accordion lists' },
+                    { icon: '3️⃣', t: 'Review & edit', d: 'Fix any mistakes before saving' },
+                    { icon: '4️⃣', t: 'Save to chatbot', d: 'FAQs go straight into your Supabase knowledge base' },
+                  ].map(item => (
+                    <div key={item.icon} style={{ display: 'flex', gap: 8 }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: '#5b21b6' }}>{item.t}</p>
+                        <p style={{ fontSize: 11, color: '#7c3aed', lineHeight: 1.4 }}>{item.d}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Drop zone */}
+              <div
+                onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={e => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files?.length) addImageFiles(e.dataTransfer.files); }}
+                onClick={() => imgFileInputRef.current?.click()}
+                style={{ border: `2px dashed ${isDragOver ? '#7c3aed' : '#c4b5fd'}`, borderRadius: 16, padding: '36px 24px', textAlign: 'center', cursor: 'pointer', background: isDragOver ? '#faf5ff' : '#fdfbff', transition: 'all 200ms', marginBottom: 20 }}
+              >
+                <input ref={imgFileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { if (e.target.files?.length) addImageFiles(e.target.files); }} />
+                <div style={{ fontSize: 36, marginBottom: 8 }}>🖼️</div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#4c1d95', marginBottom: 4 }}>{isDragOver ? 'Drop images here!' : 'Click or drag & drop images here'}</p>
+                <p style={{ fontSize: 12, color: '#7c3aed' }}>PNG, JPG, WebP, GIF · Multiple files allowed</p>
+              </div>
+
+              {/* Thumbnails */}
+              {images.length > 0 && (
+                <div style={card}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{images.length} image{images.length !== 1 ? 's' : ''} ready</p>
+                    <button style={btnSecondary} onClick={() => imgFileInputRef.current?.click()}>+ Add more</button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                    {images.map((img, idx) => (
+                      <div key={idx} style={{ position: 'relative', width: 90 }}>
+                        <img src={img.dataUrl} alt={img.name} style={{ width: 90, height: 70, objectFit: 'cover', borderRadius: 8, border: '2px solid #e0e7ff', display: 'block' }} />
+                        <button onClick={() => removeImage(idx)} style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                        <p style={{ fontSize: 9, color: '#64748b', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>{img.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+                    {!apiKeySaved && <span style={{ fontSize: 12, color: '#d97706', fontWeight: 600 }}>⚠️ Save your API key first</span>}
+                    <button style={{ ...btnPrimary('#7c3aed'), opacity: !apiKeySaved ? 0.5 : 1, cursor: !apiKeySaved ? 'not-allowed' : 'pointer' }} onClick={extractFAQsFromImages} disabled={!apiKeySaved}>
+                      ✨ Extract FAQs from {images.length} image{images.length !== 1 ? 's' : ''}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── PROCESSING ── */}
+          {imgStep === IMG_STEPS.PROCESSING && (
+            <div style={{ ...card, textAlign: 'center', padding: '56px 24px' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>Gemini is reading your images…</p>
+              <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>{progressMsg}</p>
+              <div style={{ background: '#e2e8f0', borderRadius: 99, height: 6, maxWidth: 320, margin: '0 auto', overflow: 'hidden' }}>
+                <div style={{ background: '#7c3aed', borderRadius: 99, height: '100%', width: '60%', animation: 'indeterminate 1.5s ease-in-out infinite' }} />
+              </div>
+              <style>{`@keyframes indeterminate{0%{width:10%;margin-left:0%}50%{width:50%;margin-left:30%}100%{width:10%;margin-left:90%}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            </div>
+          )}
+
+          {/* ── PREVIEW / SAVING ── */}
+          {(imgStep === IMG_STEPS.PREVIEW || imgStep === IMG_STEPS.SAVING) && (
+            <div>
+              {/* Summary bar */}
+              <div style={{ ...card, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 18 }}>🖼️</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Scanned {images.length} image{images.length !== 1 ? 's' : ''}</p>
+                  <p style={{ fontSize: 12, color: '#64748b' }}>Found <strong>{extractedFAQs.length}</strong> FAQs · <strong style={{ color: '#7c3aed' }}>{selectedFAQIds.size}</strong> selected</p>
+                </div>
+                <button style={btnSecondary} onClick={handleImgReset}>← New images</button>
+              </div>
+
+              {/* Save mode + actions */}
+              <div style={{ ...card, padding: '12px 16px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Save mode:</span>
+                {['append', 'replace'].map(m => (
+                  <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, fontWeight: imgSaveMode === m ? 700 : 400, color: imgSaveMode === m ? '#7c3aed' : '#64748b' }}>
+                    <input type="radio" name="imgSaveMode" value={m} checked={imgSaveMode === m} onChange={() => setImgSaveMode(m)} style={{ accentColor: '#7c3aed' }} />
+                    {m === 'append' ? '➕ Append' : '🔄 Replace all'}
+                  </label>
+                ))}
+                <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                  <button style={{ ...btnSecondary, padding: '6px 12px', fontSize: 12 }} onClick={() => setSelectedFAQIds(new Set(extractedFAQs.map((_, i) => i)))}>✅ All</button>
+                  <button style={{ ...btnSecondary, padding: '6px 12px', fontSize: 12 }} onClick={() => setSelectedFAQIds(new Set())}>☐ None</button>
+                  <button style={{ ...btnPrimary('#7c3aed'), opacity: imgStep === IMG_STEPS.SAVING || !selectedFAQIds.size ? 0.7 : 1 }} onClick={handleImgSave} disabled={imgStep === IMG_STEPS.SAVING || !selectedFAQIds.size}>
+                    {imgStep === IMG_STEPS.SAVING ? <><span style={spinner} /> Saving…</> : `💾 Save ${selectedFAQIds.size} FAQ${selectedFAQIds.size !== 1 ? 's' : ''}`}
+                  </button>
+                </div>
+              </div>
+
+              {/* FAQ review list */}
+              <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Extracted FAQs — Review before saving</span>
+                  <span style={{ fontSize: 12, padding: '2px 10px', background: '#f5f3ff', borderRadius: 99, color: '#7c3aed', fontWeight: 600 }}>{extractedFAQs.length} found</span>
+                </div>
+                {extractedFAQs.map((faq, idx) => {
+                  const checked = selectedFAQIds.has(idx);
+                  const isEditing = editingFAQ === idx;
+                  return (
+                    <div key={idx} style={{ borderBottom: '1px solid #f1f5f9', background: isEditing ? '#faf5ff' : checked ? '#fafbff' : 'white' }}>
+                      {isEditing ? (
+                        <div style={{ padding: '14px 16px' }}>
+                          <p style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', marginBottom: 8, textTransform: 'uppercase' }}>✏️ Editing FAQ #{idx + 1}</p>
+                          <div style={{ marginBottom: 8 }}>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Question</label>
+                            <input value={editValues.question} onChange={e => setEditValues(v => ({ ...v, question: e.target.value }))} style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ marginBottom: 8 }}>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Answer</label>
+                            <textarea value={editValues.answer} onChange={e => setEditValues(v => ({ ...v, answer: e.target.value }))} style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', minHeight: 80, resize: 'vertical', boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ marginBottom: 10 }}>
+                            <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Keywords <span style={{ fontWeight: 400, color: '#94a3b8' }}>(comma-separated)</span></label>
+                            <input value={editValues.keywords} onChange={e => setEditValues(v => ({ ...v, keywords: e.target.value }))} style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={() => saveEdit(idx)} style={{ ...btnPrimary('#7c3aed'), padding: '7px 16px', fontSize: 13 }}>✓ Save</button>
+                            <button onClick={cancelEdit} style={{ ...btnSecondary, padding: '7px 14px', fontSize: 13 }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px' }}>
+                          <div style={chkStyle(checked)} onClick={() => toggleFAQ(idx)}>{checked && <CheckIcon />}</div>
+                          <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => toggleFAQ(idx)}>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                              {faq._source && <span style={{ fontSize: 10, color: '#a78bfa' }}>📄 {faq._source}</span>}
+                              {faq.answerSource === 'inferred' && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a' }}>🤖 AI-inferred answer</span>}
+                              {faq.answerSource === 'placeholder' && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}>⚠️ Fill in answer</span>}
+                            </div>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 3 }}>Q: {faq.question}</p>
+                            <p style={{ fontSize: 12, color: faq.answerSource === 'inferred' ? '#92400e' : '#64748b', lineHeight: 1.5, marginBottom: 5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>A: {faq.answer}</p>
+                            <div>{(faq.keywords || []).slice(0, 5).map(kw => <span key={kw} style={kwTag}>{kw}</span>)}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button onClick={() => startEdit(idx, faq)} style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid #ddd6fe', background: '#f5f3ff', color: '#7c3aed', fontSize: 12, cursor: 'pointer' }}>✏️</button>
+                            <button onClick={() => deleteExtracted(idx)} style={{ padding: '4px 10px', borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>✕</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── DONE ── */}
+          {imgStep === IMG_STEPS.DONE && (
+            <div style={{ ...card, textAlign: 'center', padding: '48px 24px' }}>
+              <div style={{ fontSize: 52, marginBottom: 14 }}>🎉</div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>FAQs saved successfully!</h3>
+              <p style={{ fontSize: 14, color: '#64748b', marginBottom: 24 }}><strong>{savedCount}</strong> FAQ{savedCount !== 1 ? 's' : ''} from your image{images.length !== 1 ? 's' : ''} are now live in your chatbot.</p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button style={btnPrimary('#7c3aed')} onClick={handleImgReset}>🖼️ Extract more images</button>
+                <button style={btnSecondary} onClick={() => setSubTab('upload')}>📁 Go to File Upload</button>
+              </div>
+            </div>
+          )}
+
+          {/* Always show FAQ table below in image tab too */}
+          {imgStep === IMG_STEPS.IDLE && <FAQTable faqs={faqs} loading={loadingFaqs} onDelete={handleDelete} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Shared FAQ table component ───────────────────────────────
+function FAQTable({ faqs, loading, onDelete }) {
+  const kwStyle = { background: 'var(--color-bg-chat,#f1f5f9)', padding: '1px 7px', borderRadius: 99, fontSize: 11, color: 'var(--color-text-secondary,#64748b)', border: '1px solid var(--color-border,#e2e8f0)' };
+  return (
+    <div className="faq-table-wrap">
+      <div className="table-header">
+        <span className="table-title">Current FAQ Knowledge Base (Supabase)</span>
+        <span className="table-count">{faqs.length} entries</span>
       </div>
+      {loading ? (
+        <div className="loading-wrap"><div className="loading-spinner" /> Loading FAQs…</div>
+      ) : faqs.length === 0 ? (
+        <div className="empty-state"><span className="empty-state__icon">📭</span> No FAQs yet. Upload a file or extract from an image above.</div>
+      ) : (
+        <table>
+          <thead><tr><th style={{ width: 40 }}>#</th><th>Question</th><th>Keywords</th><th style={{ width: 80 }}>Action</th></tr></thead>
+          <tbody>
+            {faqs.map(faq => {
+              const kws = Array.isArray(faq.keywords) ? faq.keywords : [];
+              return (
+                <tr key={faq.id}>
+                  <td style={{ color: 'var(--color-text-muted,#94a3b8)' }}>{faq.id}</td>
+                  <td><strong>{faq.question}</strong></td>
+                  <td style={{ maxWidth: 200 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {kws.slice(0, 4).map(kw => <span key={kw} style={kwStyle}>{kw}</span>)}
+                      {kws.length > 4 && <span style={{ fontSize: 11, color: '#94a3b8' }}>+{kws.length - 4} more</span>}
+                    </div>
+                  </td>
+                  <td>
+                    <button onClick={() => onDelete(faq.id, faq.question)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
@@ -1131,612 +1511,6 @@ function AutoCrawlTab() {
 }
 
 // ============================================================
-// 🖼️ Image FAQ Extractor Tab  ← NEW
-// Uses Claude Vision API to extract FAQs from screenshots/images
-// ============================================================
-
-const IMG_STEPS = {
-  IDLE: 'idle',
-  PROCESSING: 'processing',
-  PREVIEW: 'preview',
-  SAVING: 'saving',
-  DONE: 'done',
-};
-
-function ImageExtractTab() {
-  const [step, setStep] = useState(IMG_STEPS.IDLE);
-  const [images, setImages] = useState([]); // [{ file, dataUrl, name }]
-  const [extractedFAQs, setExtractedFAQs] = useState([]);
-  const [selectedFAQIds, setSelectedFAQIds] = useState(new Set());
-  const [saveMode, setSaveMode] = useState('append');
-  const [error, setError] = useState(null);
-  const [progressMsg, setProgressMsg] = useState('');
-  const [savedCount, setSavedCount] = useState(0);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [editingFAQ, setEditingFAQ] = useState(null); // index of FAQ being edited
-  const [editValues, setEditValues] = useState({});
-  const fileInputRef = useRef(null);
-
-  // ── helpers ──────────────────────────────────────────────
-  const s = {
-    card: {
-      background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.05)', padding: 24, marginBottom: 20,
-    },
-    btnPrimary: {
-      padding: '10px 22px', borderRadius: 10, background: 'var(--color-primary, #4f46e5)',
-      color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer',
-      display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-    },
-    btnSecondary: {
-      padding: '10px 18px', borderRadius: 10, background: '#f1f5f9', color: '#475569',
-      fontWeight: 600, fontSize: 14, border: '1px solid #e2e8f0', cursor: 'pointer',
-      whiteSpace: 'nowrap',
-    },
-    spinner: {
-      width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)',
-      borderTopColor: 'white', animation: 'spin 0.7s linear infinite', display: 'inline-block',
-    },
-    kwTag: {
-      display: 'inline-block', padding: '2px 8px', borderRadius: 99,
-      background: '#e0e7ff', color: '#4f46e5', fontSize: 11, marginRight: 4, marginTop: 4,
-    },
-    checkbox: (checked) => ({
-      width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-      border: `2px solid ${checked ? 'var(--color-primary, #4f46e5)' : '#d1d5db'}`,
-      background: checked ? 'var(--color-primary, #4f46e5)' : 'white',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms',
-    }),
-  };
-
-  const CheckIcon = () => (
-    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-      <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-
-  // ── file reading ─────────────────────────────────────────
-  const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result); // full data URL
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-
-  const addFiles = async (fileList) => {
-    const valid = Array.from(fileList).filter(f => f.type.startsWith('image/'));
-    if (valid.length === 0) { setError('Please upload image files (PNG, JPG, GIF, WebP).'); return; }
-    setError(null);
-    const loaded = await Promise.all(
-      valid.map(async (file) => ({
-        file,
-        name: file.name,
-        dataUrl: await readFileAsBase64(file),
-      }))
-    );
-    setImages(prev => [...prev, ...loaded]);
-  };
-
-  const handleFileChange = (e) => { if (e.target.files?.length) addFiles(e.target.files); };
-  const handleDrop = (e) => {
-    e.preventDefault(); setIsDragOver(false);
-    if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
-  };
-  const removeImage = (idx) => setImages(prev => prev.filter((_, i) => i !== idx));
-
-  // ── Claude Vision extraction ─────────────────────────────
-  const extractFAQsFromImages = async () => {
-    if (images.length === 0) { setError('Please add at least one image.'); return; }
-    setError(null);
-    setStep(IMG_STEPS.PROCESSING);
-
-    const allFAQs = [];
-    const seen = new Set();
-
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
-      setProgressMsg(`Analysing image ${i + 1} of ${images.length}: ${img.name}…`);
-
-      try {
-        // Convert data URL to base64 only (strip the "data:image/xxx;base64," prefix)
-        const [header, base64Data] = img.dataUrl.split(',');
-        const mediaType = header.match(/data:(.*);base64/)?.[1] || 'image/png';
-
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1000,
-            system: `You are an expert at extracting FAQ content from images and screenshots.
-Your job is to identify every question-and-answer pair visible in the image.
-Respond ONLY with a valid JSON array — no preamble, no markdown fences, no extra text.
-Each element must have exactly these fields:
-  "question"  – the full question text (string)
-  "answer"    – the complete answer text (string)
-  "keywords"  – 3-6 relevant lowercase keywords derived from the Q&A (array of strings)
-
-If the image contains no FAQ content, return an empty array: []
-Never include anything outside the JSON array.`,
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'image',
-                    source: { type: 'base64', media_type: mediaType, data: base64Data },
-                  },
-                  {
-                    type: 'text',
-                    text: 'Extract all FAQ question-and-answer pairs from this image as a JSON array.',
-                  },
-                ],
-              },
-            ],
-          }),
-        });
-
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData?.error?.message || `API error ${response.status}`);
-        }
-
-        const data = await response.json();
-        const rawText = data.content?.find(b => b.type === 'text')?.text?.trim() || '[]';
-
-        // Strip markdown fences if model adds them despite instructions
-        const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-        let parsed;
-        try { parsed = JSON.parse(cleaned); } catch { parsed = []; }
-
-        if (!Array.isArray(parsed)) parsed = [];
-
-        for (const faq of parsed) {
-          if (!faq.question || !faq.answer) continue;
-          const key = faq.question.toLowerCase().slice(0, 80);
-          if (!seen.has(key)) {
-            seen.add(key);
-            allFAQs.push({ ...faq, _source: img.name, keywords: faq.keywords || [] });
-          }
-        }
-      } catch (err) {
-        // Show error but continue with other images
-        setError(`Error on "${img.name}": ${err.message}`);
-      }
-    }
-
-    setProgressMsg('');
-
-    if (allFAQs.length === 0) {
-      setError('No FAQ content was found in the uploaded images. Make sure the images contain visible question-and-answer pairs.');
-      setStep(IMG_STEPS.IDLE);
-      return;
-    }
-
-    setExtractedFAQs(allFAQs);
-    setSelectedFAQIds(new Set(allFAQs.map((_, i) => i)));
-    setStep(IMG_STEPS.PREVIEW);
-  };
-
-  // ── inline editing ───────────────────────────────────────
-  const startEdit = (idx, faq) => {
-    setEditingFAQ(idx);
-    setEditValues({ question: faq.question, answer: faq.answer, keywords: (faq.keywords || []).join(', ') });
-  };
-  const cancelEdit = () => { setEditingFAQ(null); setEditValues({}); };
-  const saveEdit = (idx) => {
-    setExtractedFAQs(prev => prev.map((faq, i) => i !== idx ? faq : {
-      ...faq,
-      question: editValues.question,
-      answer: editValues.answer,
-      keywords: editValues.keywords.split(',').map(k => k.trim()).filter(Boolean),
-    }));
-    cancelEdit();
-  };
-  const deleteExtracted = (idx) => {
-    setExtractedFAQs(prev => prev.filter((_, i) => i !== idx));
-    setSelectedFAQIds(prev => { const n = new Set(prev); n.delete(idx); return new Set([...n].map(id => id > idx ? id - 1 : id)); });
-  };
-
-  // ── selection helpers ────────────────────────────────────
-  const toggleFAQ = (idx) => setSelectedFAQIds(prev => {
-    const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n;
-  });
-  const selectAll = () => setSelectedFAQIds(new Set(extractedFAQs.map((_, i) => i)));
-  const deselectAll = () => setSelectedFAQIds(new Set());
-
-  // ── save to Supabase ─────────────────────────────────────
-  const handleSave = async () => {
-    const toSave = extractedFAQs.filter((_, i) => selectedFAQIds.has(i));
-    if (toSave.length === 0) { setError('Select at least one FAQ to save.'); return; }
-    setError(null);
-    setStep(IMG_STEPS.SAVING);
-    try {
-      const result = await uploadFAQsToServer(toSave, saveMode === 'replace');
-      setSavedCount(result.added ?? toSave.length);
-      setStep(IMG_STEPS.DONE);
-    } catch (err) {
-      setError('Save failed: ' + err.message);
-      setStep(IMG_STEPS.PREVIEW);
-    }
-  };
-
-  // ── reset ────────────────────────────────────────────────
-  const handleReset = () => {
-    setStep(IMG_STEPS.IDLE);
-    setImages([]);
-    setExtractedFAQs([]);
-    setSelectedFAQIds(new Set());
-    setError(null);
-    setProgressMsg('');
-    setSavedCount(0);
-    setEditingFAQ(null);
-    setEditValues({});
-  };
-
-  // ────────────────────────────────────────────────────────
-  // RENDER
-  // ────────────────────────────────────────────────────────
-  return (
-    <div>
-      {/* Header */}
-      <div className="section-header">
-        <h2 className="section-title">🖼️ Image FAQ Extractor</h2>
-        <p className="section-subtitle">
-          Upload screenshots or photos of FAQ pages · Claude Vision extracts every Q&amp;A pair · Review &amp; save to your knowledge base
-        </p>
-      </div>
-
-      {error && (
-        <div className="alert alert--error" style={{ marginBottom: 16 }}>
-          ⚠️ {error}
-        </div>
-      )}
-
-      {/* ── IDLE / Upload step ── */}
-      {(step === IMG_STEPS.IDLE) && (
-        <>
-          {/* How it works banner */}
-          <div style={{
-            ...s.card,
-            background: 'linear-gradient(135deg, #faf5ff, #eff6ff)',
-            border: '1px solid #ddd6fe',
-            padding: '18px 24px',
-          }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6', marginBottom: 10 }}>
-              ✨ How Image Extraction works
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              {[
-                { icon: '1️⃣', title: 'Upload images', desc: 'Add PNG, JPG, WebP, or GIF screenshots of any FAQ page' },
-                { icon: '2️⃣', title: 'Claude reads them', desc: 'Claude Vision scans every visible Q&A pair, accordion, table, and list' },
-                { icon: '3️⃣', title: 'Review & edit', desc: 'Inspect extracted FAQs, fix mistakes, or remove irrelevant entries' },
-                { icon: '4️⃣', title: 'Save to chatbot', desc: 'Selected FAQs are saved to Supabase and immediately active in your chatbot' },
-              ].map(item => (
-                <div key={item.icon} style={{ display: 'flex', gap: 8 }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: '#5b21b6' }}>{item.title}</p>
-                    <p style={{ fontSize: 12, color: '#7c3aed', lineHeight: 1.4 }}>{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Drop zone */}
-          <div
-            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-            onDragLeave={() => setIsDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            style={{
-              border: `2px dashed ${isDragOver ? '#7c3aed' : '#c4b5fd'}`,
-              borderRadius: 16,
-              padding: '40px 24px',
-              textAlign: 'center',
-              cursor: 'pointer',
-              background: isDragOver ? '#faf5ff' : '#fdfbff',
-              transition: 'all 200ms',
-              marginBottom: 20,
-            }}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: 'none' }}
-              onChange={handleFileChange}
-            />
-            <div style={{ fontSize: 40, marginBottom: 10 }}>🖼️</div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#4c1d95', marginBottom: 4 }}>
-              {isDragOver ? 'Drop images here!' : 'Click or drag & drop images here'}
-            </p>
-            <p style={{ fontSize: 13, color: '#7c3aed' }}>
-              Supports PNG, JPG, WebP, GIF · Multiple files allowed
-            </p>
-          </div>
-
-          {/* Thumbnail preview of added images */}
-          {images.length > 0 && (
-            <div style={s.card}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
-                  {images.length} image{images.length !== 1 ? 's' : ''} ready
-                </p>
-                <button style={{ ...s.btnSecondary, padding: '5px 12px', fontSize: 12 }} onClick={() => fileInputRef.current?.click()}>
-                  + Add more
-                </button>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                {images.map((img, idx) => (
-                  <div key={idx} style={{ position: 'relative', width: 100 }}>
-                    <img
-                      src={img.dataUrl}
-                      alt={img.name}
-                      style={{
-                        width: 100, height: 80, objectFit: 'cover',
-                        borderRadius: 10, border: '2px solid #e0e7ff', display: 'block',
-                      }}
-                    />
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                      style={{
-                        position: 'absolute', top: -6, right: -6,
-                        width: 20, height: 20, borderRadius: '50%',
-                        background: '#ef4444', color: 'white',
-                        border: 'none', cursor: 'pointer', fontSize: 12,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 700, lineHeight: 1,
-                      }}
-                    >×</button>
-                    <p style={{
-                      fontSize: 10, color: '#64748b', marginTop: 4,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      maxWidth: 100,
-                    }}>{img.name}</p>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  style={{ ...s.btnPrimary, background: '#7c3aed' }}
-                  onClick={extractFAQsFromImages}
-                >
-                  ✨ Extract FAQs from {images.length} image{images.length !== 1 ? 's' : ''}
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ── PROCESSING step ── */}
-      {step === IMG_STEPS.PROCESSING && (
-        <div style={{ ...s.card, textAlign: 'center', padding: '56px 24px' }}>
-          <div style={{ fontSize: 44, marginBottom: 12 }}>
-            <span style={{ display: 'inline-block', animation: 'spin 2s linear infinite' }}>🔍</span>
-          </div>
-          <p style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
-            Claude is reading your images…
-          </p>
-          <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-            {progressMsg || 'Analysing FAQ content…'}
-          </p>
-          <div style={{ background: '#e2e8f0', borderRadius: 99, height: 6, maxWidth: 320, margin: '0 auto' }}>
-            <div style={{
-              background: '#7c3aed', borderRadius: 99, height: '100%',
-              width: '60%',
-              animation: 'indeterminate 1.5s ease-in-out infinite',
-            }} />
-          </div>
-          <style>{`
-            @keyframes indeterminate {
-              0%   { width: 10%; margin-left: 0%; }
-              50%  { width: 50%; margin-left: 30%; }
-              100% { width: 10%; margin-left: 90%; }
-            }
-            @keyframes spin { to { transform: rotate(360deg); } }
-          `}</style>
-        </div>
-      )}
-
-      {/* ── PREVIEW / SAVING step ── */}
-      {(step === IMG_STEPS.PREVIEW || step === IMG_STEPS.SAVING) && (
-        <div>
-          {/* Summary bar */}
-          <div style={{ ...s.card, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 20 }}>🖼️</span>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>
-                Scanned {images.length} image{images.length !== 1 ? 's' : ''}
-              </p>
-              <p style={{ fontSize: 12, color: '#64748b' }}>
-                Found <strong>{extractedFAQs.length}</strong> FAQ{extractedFAQs.length !== 1 ? 's' : ''} ·{' '}
-                <strong style={{ color: '#7c3aed' }}>{selectedFAQIds.size}</strong> selected to save
-              </p>
-            </div>
-            <button style={s.btnSecondary} onClick={handleReset}>← New images</button>
-          </div>
-
-          {/* Save mode + action bar */}
-          <div style={{ ...s.card, padding: '14px 18px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Save mode:</span>
-            {['append', 'replace'].map(m => (
-              <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, fontWeight: saveMode === m ? 700 : 400, color: saveMode === m ? '#7c3aed' : '#64748b' }}>
-                <input type="radio" name="imgSaveMode" value={m} checked={saveMode === m} onChange={() => setSaveMode(m)} style={{ accentColor: '#7c3aed' }} />
-                {m === 'append' ? '➕ Append' : '🔄 Replace all'}
-              </label>
-            ))}
-            <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
-              <button style={{ ...s.btnSecondary, padding: '6px 12px', fontSize: 12 }} onClick={selectAll}>✅ All</button>
-              <button style={{ ...s.btnSecondary, padding: '6px 12px', fontSize: 12 }} onClick={deselectAll}>☐ None</button>
-              <button
-                style={{
-                  ...s.btnPrimary,
-                  background: '#7c3aed',
-                  opacity: step === IMG_STEPS.SAVING || selectedFAQIds.size === 0 ? 0.7 : 1,
-                  cursor: step === IMG_STEPS.SAVING || selectedFAQIds.size === 0 ? 'not-allowed' : 'pointer',
-                }}
-                onClick={handleSave}
-                disabled={step === IMG_STEPS.SAVING || selectedFAQIds.size === 0}
-              >
-                {step === IMG_STEPS.SAVING
-                  ? <><span style={s.spinner} /> Saving…</>
-                  : `💾 Save ${selectedFAQIds.size} FAQ${selectedFAQIds.size !== 1 ? 's' : ''}`}
-              </button>
-            </div>
-          </div>
-
-          {/* FAQ list */}
-          <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
-                Extracted FAQs — Click to select · ✏️ to edit
-              </span>
-              <span style={{ fontSize: 12, padding: '2px 10px', background: '#f5f3ff', borderRadius: 99, color: '#7c3aed', fontWeight: 600 }}>
-                {extractedFAQs.length} found
-              </span>
-            </div>
-
-            {extractedFAQs.map((faq, idx) => {
-              const checked = selectedFAQIds.has(idx);
-              const isEditing = editingFAQ === idx;
-
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    borderBottom: '1px solid #f1f5f9',
-                    background: isEditing ? '#faf5ff' : checked ? '#fafbff' : 'white',
-                  }}
-                >
-                  {isEditing ? (
-                    /* ── Edit mode ── */
-                    <div style={{ padding: '14px 16px' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        ✏️ Editing FAQ #{idx + 1}
-                      </p>
-                      <div style={{ marginBottom: 8 }}>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Question</label>
-                        <input
-                          value={editValues.question}
-                          onChange={e => setEditValues(v => ({ ...v, question: e.target.value }))}
-                          style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                      <div style={{ marginBottom: 8 }}>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Answer</label>
-                        <textarea
-                          value={editValues.answer}
-                          onChange={e => setEditValues(v => ({ ...v, answer: e.target.value }))}
-                          style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', minHeight: 80, resize: 'vertical', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                      <div style={{ marginBottom: 12 }}>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 3 }}>Keywords <span style={{ fontWeight: 400, color: '#94a3b8' }}>(comma-separated)</span></label>
-                        <input
-                          value={editValues.keywords}
-                          onChange={e => setEditValues(v => ({ ...v, keywords: e.target.value }))}
-                          style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1.5px solid #c4b5fd', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => saveEdit(idx)} style={{ ...s.btnPrimary, background: '#7c3aed', padding: '7px 16px', fontSize: 13 }}>✓ Save</button>
-                        <button onClick={cancelEdit} style={{ ...s.btnSecondary, padding: '7px 14px', fontSize: 13 }}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* ── View mode ── */
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px' }}>
-                      <div
-                        style={{ ...s.checkbox(checked), marginTop: 2, cursor: 'pointer' }}
-                        onClick={() => toggleFAQ(idx)}
-                      >
-                        {checked && <CheckIcon />}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => toggleFAQ(idx)}>
-                        {faq._source && (
-                          <p style={{ fontSize: 10, color: '#a78bfa', marginBottom: 3 }}>
-                            📄 from {faq._source}
-                          </p>
-                        )}
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
-                          Q: {faq.question}
-                        </p>
-                        <p style={{
-                          fontSize: 12, color: '#64748b', lineHeight: 1.5, marginBottom: 6,
-                          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                        }}>
-                          A: {faq.answer}
-                        </p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {(faq.keywords || []).slice(0, 6).map(kw => (
-                            <span key={kw} style={s.kwTag}>{kw}</span>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Action buttons */}
-                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); startEdit(idx, faq); }}
-                          title="Edit this FAQ"
-                          style={{
-                            padding: '4px 10px', borderRadius: 8, border: '1px solid #ddd6fe',
-                            background: '#f5f3ff', color: '#7c3aed', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                          }}
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteExtracted(idx); }}
-                          title="Remove this FAQ"
-                          style={{
-                            padding: '4px 10px', borderRadius: 8, border: '1px solid #fecaca',
-                            background: '#fef2f2', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── DONE step ── */}
-      {step === IMG_STEPS.DONE && (
-        <div style={{ ...s.card, textAlign: 'center', padding: '56px 24px' }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
-          <h3 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
-            FAQs saved successfully!
-          </h3>
-          <p style={{ fontSize: 15, color: '#64748b', marginBottom: 6 }}>
-            <strong>{savedCount}</strong> FAQ{savedCount !== 1 ? 's' : ''} extracted from your images are now live in your chatbot's knowledge base.
-          </p>
-          <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 28 }}>
-            Your chatbot will use these answers automatically on the next query.
-          </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button style={{ ...s.btnPrimary, background: '#7c3aed' }} onClick={handleReset}>
-              🖼️ Extract from more images
-            </button>
-            <button style={s.btnSecondary} onClick={() => window._adminSwitchTab && window._adminSwitchTab('faqs')}>
-              📚 View FAQ Manager
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
 // Main AdminDashboard Component
 // ============================================================
 function AdminDashboard() {
@@ -1753,7 +1527,6 @@ function AdminDashboard() {
     { id: 'faqs', label: '📚 FAQ Manager' },
     { id: 'crawler', label: '🌐 Web Crawler' },
     { id: 'autocrawl', label: '🤖 Auto-Crawl' },
-    { id: 'imageextract', label: '🖼️ Image Extractor' },  // NEW
   ];
 
   return (
@@ -1783,7 +1556,6 @@ function AdminDashboard() {
         {activeTab === 'faqs' && <FAQManagerTab />}
         {activeTab === 'crawler' && <WebCrawlerTab />}
         {activeTab === 'autocrawl' && <AutoCrawlTab />}
-        {activeTab === 'imageextract' && <ImageExtractTab />}
       </main>
     </div>
   );
