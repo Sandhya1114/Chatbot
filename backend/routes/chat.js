@@ -1,22 +1,32 @@
 // ============================================================
-// routes/chat.js — Main Chat Endpoint (with Persistence)
+// routes/chat.js — Main Chat Endpoint (with Persistence + Live Web Search)
 //
 // POST /api/chat           — Handle user message, save to DB
 // GET  /api/chat/faqs      — Initial quick-reply FAQ buttons
 // GET  /api/chat/history   — Restore session history on mount
 // DELETE /api/chat/history — Clear a session's chat history
+//
+// What changed from v1:
+//   ✅ Web search via Tavily injected into AI prompt when needed
+//   ✅ needsWebSearch() detects queries about live data (specs, prices, news)
+//   ✅ Graceful fallback — if Tavily is unavailable, Groq still answers
+//   ✅ AI_MODEL defaults to llama-3.3-70b-versatile (Groq)
+//   ✅ Source badge includes "web" when live search was used
 // ============================================================
 
 const express = require("express");
 const router = express.Router();
 const OpenAI = require("openai");
+
 const { matchFAQ, getAllFAQs } = require("../utils/faqMatcher");
 const { increment } = require("../utils/store");
 const { initSession, saveMessage, clearSession } = require("../utils/chatStore");
+const { needsWebSearch, searchWeb } = require("../utils/webSearch");
 
+// ── Groq via OpenAI-compatible client ────────────────────────
 const aiClient = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+  baseURL: process.env.OPENAI_BASE_URL || "https://api.groq.com/openai/v1",
 });
 
 // ============================================================
@@ -26,16 +36,11 @@ const aiClient = new OpenAI({
 function isValidSessionId(id) {
   if (typeof id !== "string") return false;
   if (id.length < 8 || id.length > 128) return false;
-  // Allow UUID v4 format and reasonable custom formats
   return /^[\w\-]+$/.test(id);
 }
 
 // ============================================================
 // GET /api/chat/history?sessionId=xxx&appId=yyy
-//
-// Called by the widget on mount to restore previous chat.
-// Creates the session row if it doesn't exist yet.
-// Returns the messages array (empty for brand new sessions).
 // ============================================================
 router.get("/history", async (req, res) => {
   const { sessionId, appId = "default" } = req.query;
@@ -45,20 +50,14 @@ router.get("/history", async (req, res) => {
   }
 
   try {
-    // upsert_chat_session: creates row if new, returns messages if existing
     const messages = await initSession(sessionId, appId, {
       userAgent: req.headers["user-agent"]?.slice(0, 200),
       ip: req.ip,
     });
 
-    return res.json({
-      sessionId,
-      messages,
-      total: messages.length,
-    });
+    return res.json({ sessionId, messages, total: messages.length });
   } catch (err) {
     console.error("[Chat] History fetch error:", err.message);
-    // Return empty rather than failing — widget still usable
     return res.json({ sessionId, messages: [], total: 0 });
   }
 });
@@ -72,7 +71,11 @@ router.get("/history", async (req, res) => {
 //   1. Validate inputs
 //   2. Save user message to DB
 //   3. Run FAQ matcher (RAG)
-//   4. If no FAQ match → call AI
+//   4. If no FAQ match:
+//      a. Detect if query needs live data (needsWebSearch)
+//      b. If yes → call Tavily, get search context
+//      c. Inject search context into Groq system prompt
+//      d. Call Groq
 //   5. Save bot reply to DB
 //   6. Return reply + suggestions
 // ============================================================
@@ -84,7 +87,7 @@ router.post("/", async (req, res) => {
     conversationHistory = [],
   } = req.body;
 
-  // ---- Input validation ----
+  // ── Input validation ──────────────────────────────────────
   if (!message || typeof message !== "string" || message.trim() === "") {
     return res.status(400).json({ error: "Message is required and must be a non-empty string." });
   }
@@ -95,66 +98,81 @@ router.post("/", async (req, res) => {
 
   const trimmedMessage = message.trim();
 
-  // Fire-and-forget analytics
-  increment("totalQueries").catch(() => {});
+  increment("totalQueries").catch(() => { });
 
-  // ---- Save user message to DB (non-blocking) ----
+  // ── Save user message to DB (non-blocking) ────────────────
   const userMessage = {
-    id:        `${Date.now()}-u-${Math.random().toString(36).slice(2, 7)}`,
-    role:      "user",
-    content:   trimmedMessage,
-    source:    null,
+    id: `${Date.now()}-u-${Math.random().toString(36).slice(2, 7)}`,
+    role: "user",
+    content: trimmedMessage,
+    source: null,
     timestamp: new Date().toISOString(),
   };
 
-  // Run DB save in background — don't block the response on it
   saveMessage(sessionId, userMessage).catch((err) =>
     console.error("[Chat] Failed to save user message:", err.message)
   );
 
   try {
-    // ── STEP 1: RAG — match against FAQ knowledge base ──
+    // ── STEP 1: RAG — match against FAQ knowledge base ────────
     const { match: faqMatch, suggestions } = await matchFAQ(trimmedMessage);
-
     const suggestionList = (suggestions || []).map(({ id, question }) => ({ id, question }));
 
     if (faqMatch) {
-      increment("faqAnswered").catch(() => {});
+      increment("faqAnswered").catch(() => { });
 
       const botMessage = {
-        id:        `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
-        role:      "bot",
-        content:   faqMatch.answer,
-        source:    "faq",
+        id: `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
+        role: "bot",
+        content: faqMatch.answer,
+        source: "faq",
         faqQuestion: faqMatch.question,
         timestamp: new Date().toISOString(),
       };
 
-      // Save bot reply to DB (non-blocking)
       saveMessage(sessionId, botMessage).catch((err) =>
         console.error("[Chat] Failed to save FAQ bot message:", err.message)
       );
 
       return res.json({
-        reply:       faqMatch.answer,
-        source:      "faq",
+        reply: faqMatch.answer,
+        source: "faq",
         faqQuestion: faqMatch.question,
         suggestions: suggestionList,
-        messageId:   botMessage.id,
-        timestamp:   botMessage.timestamp,
+        messageId: botMessage.id,
+        timestamp: botMessage.timestamp,
       });
     }
 
-    // ── STEP 2: No FAQ match → call AI ──
-    const model = process.env.AI_MODEL || "gpt-3.5-turbo";
+    // ── STEP 2: No FAQ match → maybe search, then call AI ────
 
-    // Build recent history for AI context (last 10 exchanges)
+    const model = process.env.AI_MODEL || "llama-3.3-70b-versatile";
+
+    // Build recent conversation history for context (last 10 exchanges)
     const recentHistory = conversationHistory.slice(-10).map((msg) => ({
-      role:    msg.role === "bot" ? "assistant" : msg.role,
+      role: msg.role === "bot" ? "assistant" : msg.role,
       content: msg.content,
     }));
 
-    const systemPrompt = `You are a friendly, knowledgeable customer support assistant for a SaaS software company.
+    // ── STEP 2a: Decide whether to search ────────────────────
+    let webContext = null;
+    let usedSearch = false;
+
+    if (needsWebSearch(trimmedMessage)) {
+      console.log(`[Chat] Query needs live data — searching web for: "${trimmedMessage}"`);
+      webContext = await searchWeb(trimmedMessage, { maxResults: 5, maxAge: 30 });
+      if (webContext) {
+        usedSearch = true;
+        console.log("[Chat] Web search returned context, injecting into prompt.");
+      } else {
+        console.log("[Chat] Web search returned nothing — falling back to model knowledge.");
+      }
+    }
+
+    // ── STEP 2b: Build system prompt ─────────────────────────
+    // If we have live search results, prepend them so Groq uses
+    // them as ground truth instead of its (possibly stale) training data.
+    const baseSystemPrompt = `You are a friendly, knowledgeable customer support assistant for a SaaS software company.
 Your personality is warm, conversational, and genuinely helpful — like a real human support agent, not a robot.
 
 Guidelines:
@@ -166,6 +184,13 @@ Guidelines:
 - After your main answer, if relevant, briefly mention 1-2 related things the user might also want to know
 - Keep suggestions natural — don't force them if they don't fit`;
 
+    const webSearchBlock = webContext
+      ? `\n\n## Live web search results (fetched right now — use these as your primary source)\n\n${webContext}\n\nIMPORTANT: The search results above are real-time data. Prioritise them over anything from your training data when answering this question. If the results clearly answer the question, use them. If they're not relevant, rely on your general knowledge and say so.`
+      : "";
+
+    const systemPrompt = baseSystemPrompt + webSearchBlock;
+
+    // ── STEP 2c: Call Groq ────────────────────────────────────
     const aiResponse = await aiClient.chat.completions.create({
       model,
       messages: [
@@ -173,7 +198,7 @@ Guidelines:
         ...recentHistory,
         { role: "user", content: trimmedMessage },
       ],
-      max_tokens:  600,
+      max_tokens: 600,
       temperature: 0.75,
     });
 
@@ -181,27 +206,29 @@ Guidelines:
       aiResponse.choices[0]?.message?.content ||
       "I'm sorry, I couldn't generate a response. Please try again.";
 
-    increment("aiAnswered").catch(() => {});
+    increment("aiAnswered").catch(() => { });
+
+    // source = "ai+web" when live search was used, "ai" otherwise
+    const replySource = usedSearch ? "ai+web" : "ai";
 
     const botMessage = {
-      id:        `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
-      role:      "bot",
-      content:   aiReply,
-      source:    "ai",
+      id: `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
+      role: "bot",
+      content: aiReply,
+      source: replySource,
       timestamp: new Date().toISOString(),
     };
 
-    // Save AI bot reply to DB (non-blocking)
     saveMessage(sessionId, botMessage).catch((err) =>
       console.error("[Chat] Failed to save AI bot message:", err.message)
     );
 
     return res.json({
-      reply:       aiReply,
-      source:      "ai",
+      reply: aiReply,
+      source: replySource,
       suggestions: suggestionList,
-      messageId:   botMessage.id,
-      timestamp:   botMessage.timestamp,
+      messageId: botMessage.id,
+      timestamp: botMessage.timestamp,
     });
 
   } catch (error) {
@@ -215,9 +242,7 @@ Guidelines:
 
 // ============================================================
 // DELETE /api/chat/history
-//
 // Body: { sessionId }
-// Clears a session's message history (user-triggered "New Chat")
 // ============================================================
 router.delete("/history", async (req, res) => {
   const { sessionId } = req.body;
