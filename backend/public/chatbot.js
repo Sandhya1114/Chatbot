@@ -1,6 +1,6 @@
 /*!
- * chatbot.js — Embed Library v3.0.0
- * Drop-in chat widget with Auto-Crawl support.
+ * chatbot.js — Embed Library v3.1.0
+ * Drop-in chat widget with Auto-Crawl + Live Web Search badge support.
  *
  * Usage:
  *   <script src="chatbot.js"></script>
@@ -11,38 +11,23 @@
  *       theme:  { primary: "#4f46e5" },
  *       bot:    { name: "Aria", avatar: "🤖", status: "Online · Typically replies instantly" },
  *
- *       // ── NEW: Auto-Crawl options ──────────────────────────────
- *       autoCrawl: true,                  // enable auto-crawl on embed
- *       autoCrawlUrls: [],                // [] = crawl current page; or supply explicit URLs
- *       autoCrawlMode: 'append',          // 'append' | 'replace'
- *       autoCrawlSaveToDb: true,          // true = persist to Supabase; false = session-only
- *       autoCrawlTTLHours: 24,            // hours before re-crawling same URL (0 = always)
- *       autoCrawlDeepLinks: false,        // also discover & crawl internal links on each URL
- *       autoCrawlMaxPages: 10,            // max pages when deepLinks is true
- *       autoCrawlOnlyFAQPaths: false,     // only deep-crawl paths matching /faq|help|support/
- *       autoCrawlSilent: true,            // suppress all console logs from crawl
+ *       // ── Auto-Crawl options ──────────────────────────────
+ *       autoCrawl: true,
+ *       autoCrawlUrls: [],
+ *       autoCrawlMode: 'append',
+ *       autoCrawlSaveToDb: true,
+ *       autoCrawlTTLHours: 24,
+ *       autoCrawlDeepLinks: false,
+ *       autoCrawlMaxPages: 10,
+ *       autoCrawlOnlyFAQPaths: false,
+ *       autoCrawlSilent: true,
  *     });
  *   </script>
  *
- * All original functionality preserved:
- *   ✅ Persistent session history (localStorage + Supabase via backend)
- *   ✅ FAQ quick-replies (initial) + contextual suggestions (after each reply)
- *   ✅ Source badges (📚 FAQ / ✨ AI)
- *   ✅ Typing indicator with animated dots
- *   ✅ Human escalation modal (name, email, issue → POST /api/escalate)
- *   ✅ New Chat button (clears remote + local history, new sessionId)
- *   ✅ "Previous conversation restored" banner
- *   ✅ Auto-resize textarea, Enter-to-send, Shift+Enter for newline
- *   ✅ Mobile full-screen responsive
- *   ✅ All original CSS variables + animations
- *
- * NEW in v3.0.0:
- *   ✅ Auto-crawl current page or specified URLs on embed
- *   ✅ Deep-link discovery (crawl internal links automatically)
- *   ✅ TTL-based deduplication (won't re-crawl same URL within N hours)
- *   ✅ Session-only FAQ injection (no DB write needed)
- *   ✅ Crawl status indicator in chat header
- *   ✅ Graceful silent failure — chatbot works even if crawl fails
+ * What's new in v3.1.0:
+ *   ✅ 🌐 Live badge shown when backend used real-time web search (source: "ai+web")
+ *   ✅ CSS class normalised — "ai+web" source maps to safe "web" CSS class
+ *   ✅ All v3.0.0 features preserved
  */
 
 (function (global) {
@@ -87,7 +72,6 @@
       faqBadge: "#e0e7ff",
       faqText: "#4f46e5",
     },
-    // ── Auto-Crawl defaults ──────────────────────────────────────
     autoCrawl: false,
     autoCrawlUrls: [],
     autoCrawlMode: "append",
@@ -112,7 +96,6 @@
     if (user.bot) Object.assign(cfg.bot, user.bot);
     if (user.launcher) Object.assign(cfg.launcher, user.launcher);
 
-    // Auto-crawl options
     var acFields = [
       "autoCrawl", "autoCrawlUrls", "autoCrawlMode", "autoCrawlSaveToDb",
       "autoCrawlTTLHours", "autoCrawlDeepLinks", "autoCrawlMaxPages",
@@ -171,23 +154,28 @@
   }
 
   // ─────────────────────────────────────────────────────────────
+  // SOURCE → BADGE HELPER
+  // "faq"    → { cssClass: "faq",  label: "📚 FAQ"  }
+  // "ai"     → { cssClass: "ai",   label: "✨ AI"   }
+  // "ai+web" → { cssClass: "web",  label: "🌐 Live" }  ← NEW
+  // anything else → { cssClass: "ai", label: "✨ AI" }
+  // ─────────────────────────────────────────────────────────────
+  function getBadgeInfo(source) {
+    if (source === "faq") return { cssClass: "faq", label: "📚 FAQ" };
+    if (source === "ai+web") return { cssClass: "web", label: "🌐 Live" };
+    return { cssClass: "ai", label: "✨ AI" };
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // AUTO-CRAWL: TTL HELPERS
   // ─────────────────────────────────────────────────────────────
-
-  /**
-   * Returns a stable localStorage key for a given appId + URL pair.
-   * Safe base64-like encoding using btoa with fallback.
-   */
   function crawlTTLKey(appId, url) {
     var encoded;
-    try { encoded = btoa(url).slice(0, 24); } catch (e) { encoded = url.replace(/[^a-z0-9]/gi, "").slice(0, 24); }
+    try { encoded = btoa(url).slice(0, 24); }
+    catch (e) { encoded = url.replace(/[^a-z0-9]/gi, "").slice(0, 24); }
     return "cb_crawl_ttl_" + appId + "_" + encoded;
   }
 
-  /**
-   * Returns true if the URL has not been crawled within autoCrawlTTLHours.
-   * Always returns true if TTLHours === 0 (force re-crawl).
-   */
   function shouldCrawlUrl(cfg, url) {
     if (!cfg.autoCrawlTTLHours || cfg.autoCrawlTTLHours <= 0) return true;
     try {
@@ -199,20 +187,12 @@
     } catch (e) { return true; }
   }
 
-  /**
-   * Stamps a URL as crawled-right-now in localStorage.
-   */
   function markUrlCrawled(cfg, url) {
     try {
-      var key = crawlTTLKey(cfg.appId, url);
-      localStorage.setItem(key, Date.now().toString());
+      localStorage.setItem(crawlTTLKey(cfg.appId, url), Date.now().toString());
     } catch (e) { }
   }
 
-  /**
-   * Clears all crawl TTL stamps for this appId.
-   * Exposed on the public API as chatbot.resetCrawlCache().
-   */
   function clearCrawlTTLCache(appId) {
     try {
       var prefix = "cb_crawl_ttl_" + appId + "_";
@@ -225,22 +205,6 @@
   // ─────────────────────────────────────────────────────────────
   // AUTO-CRAWL: CORE ENGINE
   // ─────────────────────────────────────────────────────────────
-
-  /**
-   * Main auto-crawl entry point. Called once on chatbot boot.
-   *
-   * Flow:
-   *  1. Determine which URLs to crawl (cfg.autoCrawlUrls or current page).
-   *  2. If autoCrawlDeepLinks = true, call /api/admin/crawl/links on each
-   *     base URL and expand the list with discovered internal links.
-   *  3. Filter out already-crawled URLs (TTL check).
-   *  4. For each remaining URL, POST /api/admin/crawl/preview.
-   *  5. Deduplicate FAQ results.
-   *  6. If autoCrawlSaveToDb, POST /api/admin/crawl/save.
-   *     Otherwise inject into state.sessionFAQs for this session only.
-   *  7. Stamp all crawled URLs in TTL cache.
-   *  8. Update chatbot UI status indicator.
-   */
   function autoSeedFAQs(state, els) {
     var cfg = state.cfg;
     var log = cfg.autoCrawlSilent
@@ -249,17 +213,13 @@
 
     log("Starting auto-crawl...");
 
-    // ── 1. Determine base URLs ───────────────────────────────────
     var baseUrls = Array.isArray(cfg.autoCrawlUrls) && cfg.autoCrawlUrls.length > 0
       ? cfg.autoCrawlUrls.slice()
       : [window.location.href];
 
     log("Base URLs: " + baseUrls.join(", "));
-
-    // Show a subtle crawl indicator in header
     setCrawlStatus(els, "indexing");
 
-    // ── 2. Expand with deep links if requested ───────────────────
     var expandPromise;
 
     if (cfg.autoCrawlDeepLinks) {
@@ -275,26 +235,19 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (!data.links || !data.links.length) return [url];
-
               var PRIORITY = /faq|help|support|question|knowledge/i;
               var links = data.links;
-
               if (cfg.autoCrawlOnlyFAQPaths) {
                 links = links.filter(function (l) { return PRIORITY.test(l.path); });
               }
-
-              // Cap at autoCrawlMaxPages - 1 (leave room for the base URL)
               var extra = links
                 .slice(0, cfg.autoCrawlMaxPages - 1)
                 .map(function (l) { return l.href; });
-
-              // Always include the original base URL too
               return [url].concat(extra);
             })
-            .catch(function () { return [url]; }); // fall back to just the base URL
+            .catch(function () { return [url]; });
         })
       ).then(function (arrays) {
-        // Flatten + deduplicate
         var seen = {};
         var flat = [];
         arrays.forEach(function (arr) {
@@ -309,10 +262,8 @@
       expandPromise = Promise.resolve(baseUrls);
     }
 
-    // ── 3–7. Crawl each URL, collect FAQs, save/inject ──────────
     expandPromise
       .then(function (allUrls) {
-        // Filter by TTL
         var urlsToCrawl = allUrls.filter(function (u) { return shouldCrawlUrl(cfg, u); });
 
         if (urlsToCrawl.length === 0) {
@@ -326,10 +277,8 @@
         var allFAQs = [];
         var seenQuestions = {};
 
-        // Sequential crawl with polite delay
         function crawlNext(idx) {
           if (idx >= urlsToCrawl.length) return Promise.resolve();
-
           var url = urlsToCrawl[idx];
           log("Fetching: " + url);
 
@@ -338,10 +287,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url: url }),
           })
-            .then(function (r) {
-              if (!r.ok) return null;
-              return r.json();
-            })
+            .then(function (r) { if (!r.ok) return null; return r.json(); })
             .then(function (data) {
               if (data && Array.isArray(data.faqs)) {
                 data.faqs.forEach(function (faq) {
@@ -355,16 +301,11 @@
                 markUrlCrawled(cfg, url);
               }
             })
-            .catch(function (err) {
-              log("Failed to crawl " + url + ": " + err.message);
-            })
+            .catch(function (err) { log("Failed to crawl " + url + ": " + err.message); })
             .then(function () {
-              // 300ms polite delay between requests
               return new Promise(function (resolve) { setTimeout(resolve, 300); });
             })
-            .then(function () {
-              return crawlNext(idx + 1);
-            });
+            .then(function () { return crawlNext(idx + 1); });
         }
 
         return crawlNext(0).then(function () { return allFAQs; });
@@ -379,7 +320,6 @@
         log("Total unique FAQs extracted: " + faqs.length);
 
         if (cfg.autoCrawlSaveToDb) {
-          // ── Save to Supabase ──────────────────────────────────
           log("Saving " + faqs.length + " FAQs to database (mode: " + cfg.autoCrawlMode + ")...");
           return fetch(cfg.apiUrl + "/api/admin/crawl/save", {
             method: "POST",
@@ -390,20 +330,14 @@
             .then(function (data) {
               log("Saved! " + (data.message || ""));
               setCrawlStatus(els, "done", faqs.length);
-
-              // Refresh the in-memory FAQ list so quick-reply buttons update
-              if (!state.userHasSent) {
-                loadInitialFAQs(state, els);
-              }
+              if (!state.userHasSent) loadInitialFAQs(state, els);
             })
             .catch(function (err) {
               log("Save failed: " + err.message);
-              // Inject session-only as fallback
               injectSessionFAQs(state, els, faqs);
               setCrawlStatus(els, "session", faqs.length);
             });
         } else {
-          // ── Session-only injection ────────────────────────────
           injectSessionFAQs(state, els, faqs);
           setCrawlStatus(els, "session", faqs.length);
         }
@@ -414,10 +348,6 @@
       });
   }
 
-  /**
-   * Inject FAQs directly into state for this session only (no DB write).
-   * Merges with any existing FAQs already loaded from the server.
-   */
   function injectSessionFAQs(state, els, faqs) {
     var seen = {};
     var existing = state.allFaqs || [];
@@ -433,16 +363,11 @@
     state.allFaqs = existing.concat(newOnes);
     state.sessionFAQs = faqs;
 
-    // Refresh quick-reply buttons if user hasn't sent yet
     if (!state.userHasSent) {
       renderQuickReplies(state, els, state.allFaqs, "💡 Common Questions");
     }
   }
 
-  /**
-   * Show a subtle crawl status pill in the chat header.
-   * status: 'indexing' | 'done' | 'session' | 'cached' | 'none' | 'error'
-   */
   function setCrawlStatus(els, status, count) {
     var indicator = els.root.querySelector(".cb-crawl-indicator");
     if (!indicator) return;
@@ -457,17 +382,13 @@
     };
 
     var info = map[status] || map["none"];
-    if (!info.text) {
-      indicator.style.display = "none";
-      return;
-    }
+    if (!info.text) { indicator.style.display = "none"; return; }
 
     indicator.style.display = "inline-flex";
     indicator.textContent = info.text;
     indicator.style.background = info.color;
     indicator.style.color = info.textColor;
 
-    // Auto-hide "done" / "session" after 4 seconds
     if (status === "done" || status === "session" || status === "cached") {
       setTimeout(function () {
         indicator.style.opacity = "0";
@@ -504,7 +425,7 @@
       sendMessage: function (message, sessionId, appId, conversationHistory) {
         return apiFetch("/api/chat", {
           method: "POST",
-          body: JSON.stringify({ message: message, sessionId: sessionId, appId: appId, conversationHistory: conversationHistory }),
+          body: JSON.stringify({ message, sessionId, appId, conversationHistory }),
         });
       },
       fetchFAQs: function () {
@@ -513,7 +434,7 @@
       clearHistory: function (sessionId) {
         return apiFetch("/api/chat/history", {
           method: "DELETE",
-          body: JSON.stringify({ sessionId: sessionId }),
+          body: JSON.stringify({ sessionId }),
         });
       },
       escalate: function (payload) {
@@ -617,14 +538,13 @@
       ".cb-status-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;",
       "box-shadow:0 0 0 2px rgba(74,222,128,.3);animation:cb-pulse 2s infinite;flex-shrink:0;}",
 
-      /* Crawl indicator pill — NEW */
+      /* Crawl indicator pill */
       ".cb-crawl-indicator{",
       "display:none;align-items:center;gap:4px;",
       "padding:2px 8px;border-radius:var(--cb-r-full);",
       "font-size:10px;font-weight:600;letter-spacing:.02em;",
       "position:absolute;bottom:6px;left:72px;",
-      "transition:opacity 0.6s ease;white-space:nowrap;",
-      "z-index:2;}",
+      "transition:opacity 0.6s ease;white-space:nowrap;z-index:2;}",
 
       /* Header buttons */
       ".cb-header-btn{padding:4px 8px;border-radius:var(--cb-r-full);",
@@ -664,11 +584,16 @@
       ".cb-msg-wrap{max-width:80%;display:flex;flex-direction:column;gap:4px;}",
       ".cb-msg-row.user .cb-msg-wrap{align-items:flex-end;}",
 
+      /* SOURCE BADGES */
       ".cb-src-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;",
       "border-radius:var(--cb-r-full);font-size:10px;font-weight:600;",
       "letter-spacing:.02em;text-transform:uppercase;align-self:flex-start;}",
+      /* 📚 FAQ — indigo */
       ".cb-src-badge.faq{background:var(--cb-faq-badge);color:var(--cb-faq-text);}",
+      /* ✨ AI — green */
       ".cb-src-badge.ai{background:#d1fae5;color:#065f46;}",
+      /* 🌐 Live — blue  ← NEW for ai+web source */
+      ".cb-src-badge.web{background:#dbeafe;color:#1e40af;}",
 
       ".cb-bubble{padding:8px 16px;border-radius:var(--cb-r-lg);",
       "font-size:14px;line-height:1.6;word-break:break-word;}",
@@ -842,9 +767,8 @@
       '<span class="cb-status-text">' + sanitize(cfg.bot.status) + '</span>',
       '</div>',
       '</div>',
-      // NEW: crawl indicator pill
       '<span class="cb-crawl-indicator"></span>',
-      '<button class="cb-header-btn cb-new-btn" style="display:none" aria-label="Start a new chat" title="Clear history and start fresh">🔄 New</button>',
+      '<button class="cb-header-btn cb-new-btn" style="display:none" aria-label="Start a new chat">🔄 New</button>',
       '<button class="cb-header-btn cb-human-btn" aria-label="Talk to a human agent">👤 Human</button>',
       '<button class="cb-close-btn" aria-label="Close chat">' + ICON_CLOSE + '</button>',
       '</div>',
@@ -892,7 +816,7 @@
       '</div>',
       '<div class="cb-form-group">',
       '<label class="cb-form-label">Describe your issue</label>',
-      '<textarea class="cb-form-textarea cb-esc-issue" placeholder="What can we help you with? The more detail, the better." rows="3"></textarea>',
+      '<textarea class="cb-form-textarea cb-esc-issue" placeholder="What can we help you with?" rows="3"></textarea>',
       '</div>',
       '<div class="cb-modal-actions">',
       '<button class="cb-btn cb-btn-secondary cb-modal-cancel">Cancel</button>',
@@ -930,13 +854,13 @@
       conversationHistory: [],
       suggestions: [],
       allFaqs: [],
-      sessionFAQs: [],      // FAQs injected by auto-crawl (session-only mode)
+      sessionFAQs: [],
       isTyping: false,
       isLoading: false,
       isOpen: false,
       historyLoaded: false,
       userHasSent: false,
-      autoCrawlDone: false, // prevent double-crawl
+      autoCrawlDone: false,
     };
   }
 
@@ -964,10 +888,12 @@
     }
     html += '<div class="cb-msg-wrap">';
 
+    // ── SOURCE BADGE ─────────────────────────────────────────
+    // getBadgeInfo() maps "ai+web" → cssClass:"web" label:"🌐 Live"
+    // This avoids using "ai+web" directly as a CSS class (+ is invalid in CSS)
     if (!isUser && msg.source) {
-      html += '<span class="cb-src-badge ' + msg.source + '">';
-      html += (msg.source === "faq" ? "📚 FAQ" : "✨ AI");
-      html += '</span>';
+      var badge = getBadgeInfo(msg.source);
+      html += '<span class="cb-src-badge ' + badge.cssClass + '">' + badge.label + '</span>';
     }
 
     html += '<div class="cb-bubble ' + (isUser ? "user" : "bot") + '"';
@@ -1004,10 +930,7 @@
   }
 
   function renderQuickReplies(state, els, faqs, label) {
-    if (!faqs || faqs.length === 0) {
-      els.quickWrap.style.display = "none";
-      return;
-    }
+    if (!faqs || faqs.length === 0) { els.quickWrap.style.display = "none"; return; }
     els.quickWrap.style.display = "block";
     els.quickWrap.querySelector(".cb-quick-label").textContent = label;
     els.quickList.innerHTML = "";
@@ -1016,9 +939,7 @@
       btn.className = "cb-quick-btn";
       btn.textContent = faq.question;
       btn.title = faq.question;
-      btn.addEventListener("click", function () {
-        sendMessage(state, els, faq.question);
-      });
+      btn.addEventListener("click", function () { sendMessage(state, els, faq.question); });
       els.quickList.appendChild(btn);
     });
   }
@@ -1064,10 +985,7 @@
         }
 
         setStatusText(els, state.cfg.bot.status);
-
-        if (!state.userHasSent) {
-          loadInitialFAQs(state, els);
-        }
+        if (!state.userHasSent) loadInitialFAQs(state, els);
       })
       .catch(function () {
         state.isLoading = false;
@@ -1081,7 +999,6 @@
       .then(function (data) {
         var list = Array.isArray(data.faqs) ? data.faqs : (Array.isArray(data) ? data : []);
 
-        // Merge with any session FAQs already loaded by auto-crawl
         if (state.sessionFAQs && state.sessionFAQs.length > 0) {
           var seen = {};
           list.forEach(function (f) { seen[f.question.toLowerCase().slice(0, 80)] = true; });
@@ -1143,7 +1060,7 @@
           id: data.messageId || (Date.now() + "-b-" + Math.random().toString(36).slice(2, 6)),
           role: "bot",
           content: data.reply,
-          source: data.source,
+          source: data.source,         // "faq" | "ai" | "ai+web"
           faqQuestion: data.faqQuestion,
           timestamp: data.timestamp || new Date().toISOString(),
         };
@@ -1202,7 +1119,6 @@
       '</div>',
     ].join("");
     els.newBtn.style.display = "none";
-
     renderQuickReplies(state, els, state.allFaqs, "💡 Common Questions");
   }
 
@@ -1394,17 +1310,13 @@
       var els = buildDOM(cfg);
       wireEvents(state, els);
 
-      // ── Kick off auto-crawl immediately (non-blocking) ─────────
       if (cfg.autoCrawl && !state.autoCrawlDone) {
         state.autoCrawlDone = true;
-        // Small delay so the page is fully settled before we hit the network
-        setTimeout(function () {
-          autoSeedFAQs(state, els);
-        }, 500);
+        setTimeout(function () { autoSeedFAQs(state, els); }, 500);
       }
 
       console.log(
-        "[ChatBot] v3.0.0 Ready — appId: \"" + cfg.appId + "\"" +
+        "[ChatBot] v3.1.0 Ready — appId: \"" + cfg.appId + "\"" +
         (cfg.apiUrl ? ", api: \"" + cfg.apiUrl + "\"" : ", api: same-origin") +
         (cfg.autoCrawl ? ", autoCrawl: ON" : "")
       );
@@ -1430,29 +1342,16 @@
           setTimeout(function () { sendMessage(state, els, text); }, state.historyLoaded ? 0 : 600);
         },
         clearHistory: function () { newChat(state, els); },
-        /**
-         * Manually trigger an auto-crawl cycle (ignores TTL).
-         * Useful for single-page apps where the route changes
-         * after initial load.
-         *   chatbot.recrawl();                   // re-crawl current page
-         *   chatbot.recrawl(['https://...']);     // re-crawl specific URLs
-         */
         recrawl: function (urls) {
           var prevUrls = cfg.autoCrawlUrls;
-          if (urls) cfg.autoCrawlUrls = urls;
           var prevTTL = cfg.autoCrawlTTLHours;
-          cfg.autoCrawlTTLHours = 0; // force
+          if (urls) cfg.autoCrawlUrls = urls;
+          cfg.autoCrawlTTLHours = 0;
           autoSeedFAQs(state, els);
           cfg.autoCrawlUrls = prevUrls;
           cfg.autoCrawlTTLHours = prevTTL;
         },
-        /**
-         * Clear the TTL cache so the next auto-crawl will
-         * re-fetch all URLs regardless of when they were last crawled.
-         */
-        resetCrawlCache: function () {
-          clearCrawlTTLCache(cfg.appId);
-        },
+        resetCrawlCache: function () { clearCrawlTTLCache(cfg.appId); },
         destroy: function () {
           ["cb-styles", "cb-root", "cb-launcher", "cb-modal"].forEach(function (id) {
             var el = document.getElementById(id);
