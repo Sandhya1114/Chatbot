@@ -252,3 +252,4 @@ router.get("/faqs", async (req, res) => {
 });
 
 module.exports = router;
+

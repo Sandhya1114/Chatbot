@@ -480,6 +480,152 @@ function parseCSVClient(text) {
   return faqs;
 }
 
+function CrawlTab() {
+  const [url, setUrl] = useState("");
+  const [logs, setLogs] = useState([]);
+  const [crawling, setCrawling] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const startCrawl = async () => {
+    if (!url.trim()) return;
+    setCrawling(true);
+    setDone(false);
+    setLogs([{ message: "Connecting to crawler...", status: "started" }]);
+
+    try {
+      const response = await fetch("/api/admin/crawl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+
+      if (!response.ok || !response.body) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done: streamDone, value } = await reader.read();
+        if (streamDone) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || "";
+
+        for (const event of events) {
+          const line = event.split("\n").find((entry) => entry.startsWith("data:"));
+          if (!line) continue;
+
+          try {
+            const data = JSON.parse(line.replace(/^data:\s*/, ""));
+            setLogs((prev) => [...prev, data]);
+            if (data.status === "done" || data.status === "error") {
+              setCrawling(false);
+              setDone(true);
+            }
+          } catch {}
+        }
+      }
+    } catch (err) {
+      setLogs((prev) => [...prev, { status: "error", message: err.message }]);
+      setDone(true);
+    } finally {
+      setCrawling(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="section-header">
+        <h2 className="section-title">Universal Crawl</h2>
+        <p className="section-subtitle">
+          Paste any website or PDF URL and we&apos;ll crawl route content into your FAQ database
+        </p>
+      </div>
+
+      {/* URL Input */}
+      <div style={{
+        background: "white", borderRadius: 16, padding: 24,
+        border: "1px solid #e2e8f0", marginBottom: 24,
+      }}>
+        <label style={{ fontSize: 13, fontWeight: 600, color: "#475569", display: "block", marginBottom: 8 }}>
+          Website or Document URL
+        </label>
+        <div style={{ display: "flex", gap: 12 }}>
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com or https://example.com/file.pdf"
+            disabled={crawling}
+            style={{
+              flex: 1, padding: "10px 16px", borderRadius: 10,
+              border: "1.5px solid #e2e8f0", fontSize: 14, outline: "none",
+            }}
+          />
+          <button
+            onClick={startCrawl}
+            disabled={crawling || !url.trim()}
+            style={{
+              padding: "10px 24px", borderRadius: 10,
+              background: crawling ? "#e2e8f0" : "#4f46e5",
+              color: crawling ? "#94a3b8" : "white",
+              fontWeight: 700, fontSize: 14, border: "none", cursor: crawling ? "not-allowed" : "pointer",
+            }}
+          >
+            {crawling ? "Crawling..." : "Start Crawl"}
+          </button>
+        </div>
+        <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 8 }}>
+          We&apos;ll follow internal links, extract route text, and store clean entries automatically
+        </p>
+      </div>
+
+      {/* Live Logs */}
+      {logs.length > 0 && (
+        <div style={{
+          background: "#0f172a", borderRadius: 16, padding: 24,
+          fontFamily: "monospace", fontSize: 13,
+        }}>
+          <p style={{ color: "#94a3b8", marginBottom: 12, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Live Progress
+          </p>
+          {logs.map((log, i) => (
+            <div key={i} style={{
+              color: log.status === "error" ? "#f87171"
+                   : log.status === "done"  ? "#4ade80"
+                   : "#e2e8f0",
+              marginBottom: 6, display: "flex", gap: 8,
+            }}>
+              <span style={{ color: "#475569" }}>→</span>
+              {log.message}
+            </div>
+          ))}
+          {crawling && (
+            <div style={{ color: "#818cf8", marginTop: 8 }}>
+              Working...
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Success */}
+      {done && logs[logs.length - 1]?.status === "done" && (
+        <div style={{
+          marginTop: 16, padding: 16, background: "#d1fae5",
+          borderRadius: 12, color: "#065f46", fontWeight: 600, fontSize: 14,
+        }}>
+          {logs[logs.length - 1].message} - Go to FAQ Manager to review them.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // Main AdminDashboard Component
 // ============================================================
@@ -488,6 +634,7 @@ function AdminDashboard() {
 
   const tabs = [
     { id: 'analytics', label: '📊 Analytics' },
+    { id: 'crawl',     label: 'Crawl' },
     { id: 'faqs',      label: '📚 FAQ Manager' },
   ];
 
@@ -515,6 +662,7 @@ function AdminDashboard() {
       </nav>
       <main className="admin-content">
         {activeTab === 'analytics' && <AnalyticsTab />}
+        {activeTab === 'crawl'     && <CrawlTab />}
         {activeTab === 'faqs'      && <FAQManagerTab />}
       </main>
     </div>

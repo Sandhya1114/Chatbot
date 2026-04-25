@@ -80,6 +80,43 @@ function tokenize(text) {
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
 }
 
+function scoreTokenOverlap(tokens, queryTokens, exactWeight, partialWeight) {
+  let score = 0;
+  for (const token of tokens) {
+    if (queryTokens.includes(token)) {
+      score += exactWeight;
+      continue;
+    }
+
+    for (const queryToken of queryTokens) {
+      if (token.includes(queryToken) || queryToken.includes(token)) {
+        score += partialWeight;
+        break;
+      }
+    }
+  }
+  return score;
+}
+
+function scorePhraseMatches(text, normalizedQuery, phraseLength, weight) {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  let score = 0;
+
+  for (let i = 0; i <= words.length - phraseLength; i++) {
+    const phrase = words
+      .slice(i, i + phraseLength)
+      .join(" ")
+      .replace(/[^\w\s]/g, "")
+      .trim();
+
+    if (phrase && normalizedQuery.includes(phrase)) {
+      score += weight;
+    }
+  }
+
+  return score;
+}
+
 // ============================================================
 // scoreFAQ(faq, queryTokens, normalizedQuery)
 //
@@ -98,46 +135,33 @@ function scoreFAQ(faq, queryTokens, normalizedQuery) {
 
   // --- Keyword matching ---
   const keywords = Array.isArray(faq.keywords) ? faq.keywords : [];
-  for (const keyword of keywords) {
-    const kw = keyword.toLowerCase();
-    if (normalizedQuery.includes(kw)) {
-      score += 3.0; // exact keyword hit
-    } else {
-      // partial — any query token is contained in the keyword or vice versa
-      for (const token of queryTokens) {
-        if (kw.includes(token) || token.includes(kw)) {
-          score += 1.0;
-          break;
-        }
+  for (const keyword of keywords.map((keyword) => keyword.toLowerCase())) {
+    if (normalizedQuery.includes(keyword)) {
+      score += 3.0;
+      continue;
+    }
+
+    for (const token of queryTokens) {
+      if (keyword.includes(token) || token.includes(keyword)) {
+        score += 1.0;
+        break;
       }
     }
   }
 
   // --- Question-word matching ---
   const qTokens = tokenize(faq.question);
-  for (const qWord of qTokens) {
-    if (qWord.length <= 3) continue;
-    if (queryTokens.includes(qWord)) {
-      score += 1.5;
-    } else {
-      for (const token of queryTokens) {
-        if (qWord.includes(token) || token.includes(qWord)) {
-          score += 0.5;
-          break;
-        }
-      }
-    }
-  }
+  score += scoreTokenOverlap(qTokens, queryTokens, 1.5, 0.5);
+
+  // --- Answer-body matching ---
+  // This lets route-level scraped content match even when the user's wording
+  // appears in the stored answer more than in the generated FAQ question.
+  const answerTokens = tokenize(String(faq.answer || "")).slice(0, 250);
+  score += scoreTokenOverlap(answerTokens, queryTokens, 0.7, 0.2);
 
   // --- Phrase proximity bonus ---
-  // If the question contains a sequence of 3+ words that appear in the query
-  const qWords = faq.question.toLowerCase().split(/\s+/);
-  for (let i = 0; i <= qWords.length - 3; i++) {
-    const phrase = qWords.slice(i, i + 3).join(" ").replace(/[^\w\s]/g, "");
-    if (normalizedQuery.includes(phrase)) {
-      score += 2.0;
-    }
-  }
+  score += scorePhraseMatches(faq.question, normalizedQuery, 3, 2.0);
+  score += scorePhraseMatches(String(faq.answer || "").slice(0, 400), normalizedQuery, 3, 0.8);
 
   return score;
 }

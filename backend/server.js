@@ -97,6 +97,7 @@ const path    = require("path");
 const chatRoutes       = require("./routes/chat");
 const escalationRoutes = require("./routes/escalation");
 const adminRoutes      = require("./routes/admin");
+const extractorRoutes  = require("./routes/extractor");
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
@@ -122,7 +123,9 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // This is how chatbot.js, admin.html, and index.html are served.
 // ============================================================
 app.use(express.static(path.join(__dirname, "public")));
-
+const crawlerRoutes = require("./routes/crawler");
+app.use("/api/admin/crawl", crawlerRoutes);
+app.use("/api/extract", extractorRoutes);
 // Request logger (dev only)
 if (process.env.NODE_ENV !== "production") {
   app.use((req, res, next) => {
