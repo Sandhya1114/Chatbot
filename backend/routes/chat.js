@@ -6,13 +6,27 @@ const { initSession, saveMessage, clearSession } = require("../utils/chatStore")
 
 const router = express.Router();
 
+const AI_API_KEY =
+  process.env.GROQ_API_KEY ||
+  process.env.OPENAI_API_KEY ||
+  "";
+
+const AI_BASE_URL =
+  process.env.GROQ_BASE_URL ||
+  process.env.OPENAI_BASE_URL ||
+  "https://api.openai.com/v1";
+
 const aiClient = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+  apiKey: AI_API_KEY,
+  baseURL: AI_BASE_URL,
 });
 
 const CONTEXT_ONLY_FALLBACK =
   "I'm sorry, I couldn't find that information. Please contact support for more details.";
+
+function hasAiAccess() {
+  return Boolean(AI_API_KEY);
+}
 
 const FOLLOW_UP_PATTERNS = [
   /\btell me more\b/i,
@@ -248,7 +262,7 @@ async function generateAiReply(question, options = {}) {
   const pageUrl = String(options.pageUrl || "");
   const fallbackContext = contextBlock || "";
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!hasAiAccess()) {
     if (fallbackContext) {
       return {
         reply: buildConciseFallback(fallbackContext, 90),
@@ -321,7 +335,7 @@ async function generateAiSuggestions(question, reply, options = {}) {
     return fallbackQuestions;
   }
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!hasAiAccess()) {
     return [];
   }
 
@@ -370,7 +384,7 @@ async function rewriteFaqAnswer(question, context) {
   const cleanedContext = cleanContextText(context);
   if (!cleanedContext) return CONTEXT_ONLY_FALLBACK;
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!hasAiAccess()) {
     return buildConciseFallback(cleanedContext);
   }
 
