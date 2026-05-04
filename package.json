@@ -4,6 +4,8 @@
   "description": "Full-stack chatbot application with FAQ, AI, escalation, and admin dashboard",
   "private": true,
   "scripts": {
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "start:backend": "cd backend && npm run dev",
     "start:frontend": "cd frontend && npm start",

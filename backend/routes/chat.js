@@ -1,42 +1,119 @@
-// ============================================================
-// routes/chat.js — Main Chat Endpoint (with Persistence)
-//
-// POST /api/chat           — Handle user message, save to DB
-// GET  /api/chat/faqs      — Initial quick-reply FAQ buttons
-// GET  /api/chat/history   — Restore session history on mount
-// DELETE /api/chat/history — Clear a session's chat history
-// ============================================================
-
 const express = require("express");
-const router = express.Router();
 const OpenAI = require("openai");
 const { matchFAQ, getAllFAQs } = require("../utils/faqMatcher");
 const { increment } = require("../utils/store");
 const { initSession, saveMessage, clearSession } = require("../utils/chatStore");
+
+const router = express.Router();
 
 const aiClient = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
 });
 
-// ============================================================
-// Validate session ID — must be a non-empty string, UUID-like
-// Prevents SQL injection / oversized keys
-// ============================================================
+const CONTEXT_ONLY_FALLBACK =
+  "I'm sorry, I couldn't find that information. Please contact support for more details.";
+
 function isValidSessionId(id) {
   if (typeof id !== "string") return false;
   if (id.length < 8 || id.length > 128) return false;
-  // Allow UUID v4 format and reasonable custom formats
-  return /^[\w\-]+$/.test(id);
+  return /^[\w-]+$/.test(id);
 }
 
-// ============================================================
-// GET /api/chat/history?sessionId=xxx&appId=yyy
-//
-// Called by the widget on mount to restore previous chat.
-// Creates the session row if it doesn't exist yet.
-// Returns the messages array (empty for brand new sessions).
-// ============================================================
+function extractSourceUrl(text) {
+  const match = String(text || "").match(/Source URL:\s*(https?:\/\/\S+)/i);
+  return match?.[1]?.trim() || null;
+}
+
+function stripSourceMetadata(text) {
+  return String(text || "")
+    .replace(/Source URL:\s*https?:\/\/\S+\s*/gi, "")
+    .trim();
+}
+
+function cleanContextText(text) {
+  return stripSourceMetadata(text)
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function buildConciseFallback(text, maxWords = 80) {
+  const normalized = cleanContextText(text);
+  if (!normalized) return CONTEXT_ONLY_FALLBACK;
+
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  let wordCount = 0;
+  const selected = [];
+
+  for (const sentence of sentences) {
+    const words = sentence.split(/\s+/).filter(Boolean);
+    if (selected.length > 0 && wordCount + words.length > maxWords) break;
+    selected.push(sentence);
+    wordCount += words.length;
+    if (wordCount >= maxWords) break;
+  }
+
+  if (selected.length > 0) {
+    return selected.join(" ").trim();
+  }
+
+  const allWords = normalized.split(/\s+/).filter(Boolean);
+  const trimmedWords = allWords.slice(0, maxWords);
+  const suffix = trimmedWords.length < allWords.length ? "..." : "";
+  return `${trimmedWords.join(" ")}${suffix}`.trim();
+}
+
+async function rewriteFaqAnswer(question, context) {
+  const cleanedContext = cleanContextText(context);
+  if (!cleanedContext) return CONTEXT_ONLY_FALLBACK;
+
+  if (!process.env.OPENAI_API_KEY) {
+    return buildConciseFallback(cleanedContext);
+  }
+
+  try {
+    const model = process.env.AI_MODEL || "gpt-3.5-turbo";
+    const completion = await aiClient.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: `You are a helpful and professional support assistant.
+
+You must answer the user's question strictly based on the provided context.
+
+Rules:
+- Do NOT generate information that is not present in the context.
+- If the answer is partially available, provide the most relevant information.
+- If no relevant information is found, reply exactly with:
+"I'm sorry, I couldn't find that information. Please contact support for more details."
+- Keep responses short (under 80 words), clear, and user-friendly.
+- Combine information if multiple relevant points are found.
+- Do not mention the source or context.`,
+        },
+        {
+          role: "user",
+          content: `Context:\n${cleanedContext}\n\nQuestion:\n${question}\n\nHelpful Answer:`,
+        },
+      ],
+      max_tokens: 160,
+      temperature: 0.2,
+    });
+
+    const reply = completion.choices[0]?.message?.content?.trim();
+    return reply || buildConciseFallback(cleanedContext);
+  } catch (error) {
+    console.error("[Chat] FAQ rewrite error:", error.message);
+    return buildConciseFallback(cleanedContext);
+  }
+}
+
 router.get("/history", async (req, res) => {
   const { sessionId, appId = "default" } = req.query;
 
@@ -45,7 +122,6 @@ router.get("/history", async (req, res) => {
   }
 
   try {
-    // upsert_chat_session: creates row if new, returns messages if existing
     const messages = await initSession(sessionId, appId, {
       userAgent: req.headers["user-agent"]?.slice(0, 200),
       ip: req.ip,
@@ -58,24 +134,10 @@ router.get("/history", async (req, res) => {
     });
   } catch (err) {
     console.error("[Chat] History fetch error:", err.message);
-    // Return empty rather than failing — widget still usable
     return res.json({ sessionId, messages: [], total: 0 });
   }
 });
 
-// ============================================================
-// POST /api/chat
-//
-// Body: { message, sessionId, appId?, conversationHistory? }
-//
-// Flow:
-//   1. Validate inputs
-//   2. Save user message to DB
-//   3. Run FAQ matcher (RAG)
-//   4. If no FAQ match → call AI
-//   5. Save bot reply to DB
-//   6. Return reply + suggestions
-// ============================================================
 router.post("/", async (req, res) => {
   const {
     message,
@@ -84,7 +146,9 @@ router.post("/", async (req, res) => {
     conversationHistory = [],
   } = req.body;
 
-  // ---- Input validation ----
+  void appId;
+  void conversationHistory;
+
   if (!message || typeof message !== "string" || message.trim() === "") {
     return res.status(400).json({ error: "Message is required and must be a non-empty string." });
   }
@@ -94,116 +158,74 @@ router.post("/", async (req, res) => {
   }
 
   const trimmedMessage = message.trim();
-
-  // Fire-and-forget analytics
   increment("totalQueries").catch(() => {});
 
-  // ---- Save user message to DB (non-blocking) ----
   const userMessage = {
-    id:        `${Date.now()}-u-${Math.random().toString(36).slice(2, 7)}`,
-    role:      "user",
-    content:   trimmedMessage,
-    source:    null,
+    id: `${Date.now()}-u-${Math.random().toString(36).slice(2, 7)}`,
+    role: "user",
+    content: trimmedMessage,
+    source: null,
     timestamp: new Date().toISOString(),
   };
 
-  // Run DB save in background — don't block the response on it
   saveMessage(sessionId, userMessage).catch((err) =>
     console.error("[Chat] Failed to save user message:", err.message)
   );
 
   try {
-    // ── STEP 1: RAG — match against FAQ knowledge base ──
     const { match: faqMatch, suggestions } = await matchFAQ(trimmedMessage);
-
     const suggestionList = (suggestions || []).map(({ id, question }) => ({ id, question }));
 
     if (faqMatch) {
       increment("faqAnswered").catch(() => {});
 
+      const sourceUrl = extractSourceUrl(faqMatch.answer);
+      const rewrittenReply = await rewriteFaqAnswer(trimmedMessage, faqMatch.answer);
+
       const botMessage = {
-        id:        `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
-        role:      "bot",
-        content:   faqMatch.answer,
-        source:    "faq",
+        id: `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
+        role: "bot",
+        content: rewrittenReply,
+        source: "faq",
+        sourceUrl,
         faqQuestion: faqMatch.question,
         timestamp: new Date().toISOString(),
       };
 
-      // Save bot reply to DB (non-blocking)
       saveMessage(sessionId, botMessage).catch((err) =>
         console.error("[Chat] Failed to save FAQ bot message:", err.message)
       );
 
       return res.json({
-        reply:       faqMatch.answer,
-        source:      "faq",
+        reply: rewrittenReply,
+        source: "faq",
+        sourceUrl,
         faqQuestion: faqMatch.question,
         suggestions: suggestionList,
-        messageId:   botMessage.id,
-        timestamp:   botMessage.timestamp,
+        messageId: botMessage.id,
+        timestamp: botMessage.timestamp,
       });
     }
 
-    // ── STEP 2: No FAQ match → call AI ──
-    const model = process.env.AI_MODEL || "gpt-3.5-turbo";
-
-    // Build recent history for AI context (last 10 exchanges)
-    const recentHistory = conversationHistory.slice(-10).map((msg) => ({
-      role:    msg.role === "bot" ? "assistant" : msg.role,
-      content: msg.content,
-    }));
-
-    const systemPrompt = `You are a friendly, knowledgeable customer support assistant for a SaaS software company.
-Your personality is warm, conversational, and genuinely helpful — like a real human support agent, not a robot.
-
-Guidelines:
-- Answer clearly and concisely (2-4 sentences ideally, longer only if truly needed)
-- Use natural, conversational language — contractions are fine ("you'll", "we've", "don't")
-- When you don't know something specific, be honest and offer to connect them with a human
-- Format lists with bullet points when it helps readability
-- NEVER make up pricing, policies, or feature details you're not sure about
-- After your main answer, if relevant, briefly mention 1-2 related things the user might also want to know
-- Keep suggestions natural — don't force them if they don't fit`;
-
-    const aiResponse = await aiClient.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...recentHistory,
-        { role: "user", content: trimmedMessage },
-      ],
-      max_tokens:  600,
-      temperature: 0.75,
-    });
-
-    const aiReply =
-      aiResponse.choices[0]?.message?.content ||
-      "I'm sorry, I couldn't generate a response. Please try again.";
-
-    increment("aiAnswered").catch(() => {});
-
-    const botMessage = {
-      id:        `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
-      role:      "bot",
-      content:   aiReply,
-      source:    "ai",
+    const fallbackMessage = {
+      id: `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
+      role: "bot",
+      content: CONTEXT_ONLY_FALLBACK,
+      source: null,
       timestamp: new Date().toISOString(),
     };
 
-    // Save AI bot reply to DB (non-blocking)
-    saveMessage(sessionId, botMessage).catch((err) =>
-      console.error("[Chat] Failed to save AI bot message:", err.message)
+    saveMessage(sessionId, fallbackMessage).catch((err) =>
+      console.error("[Chat] Failed to save fallback bot message:", err.message)
     );
 
     return res.json({
-      reply:       aiReply,
-      source:      "ai",
+      reply: CONTEXT_ONLY_FALLBACK,
+      source: null,
       suggestions: suggestionList,
-      messageId:   botMessage.id,
-      timestamp:   botMessage.timestamp,
+      messageId: fallbackMessage.id,
+      timestamp: fallbackMessage.timestamp,
     });
-
   } catch (error) {
     console.error("[Chat] Error:", error.message);
     return res.status(500).json({
@@ -213,12 +235,6 @@ Guidelines:
   }
 });
 
-// ============================================================
-// DELETE /api/chat/history
-//
-// Body: { sessionId }
-// Clears a session's message history (user-triggered "New Chat")
-// ============================================================
 router.delete("/history", async (req, res) => {
   const { sessionId } = req.body;
 
@@ -235,10 +251,6 @@ router.delete("/history", async (req, res) => {
   }
 });
 
-// ============================================================
-// GET /api/chat/faqs
-// Returns the full FAQ list for initial quick-reply buttons
-// ============================================================
 router.get("/faqs", async (req, res) => {
   try {
     const faqs = await getAllFAQs();
@@ -252,4 +264,3 @@ router.get("/faqs", async (req, res) => {
 });
 
 module.exports = router;
-

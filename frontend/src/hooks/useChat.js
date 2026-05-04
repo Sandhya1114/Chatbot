@@ -152,6 +152,7 @@ export function useChat(appId = "default") {
       // Use the server-generated timestamp + id if available
       const botMsg = createMessage("bot", data.reply, data.source, {
         id:          data.messageId || undefined,
+        sourceUrl:   data.sourceUrl || null,
         timestamp:   data.timestamp || new Date().toISOString(),
         faqQuestion: data.faqQuestion,
       });

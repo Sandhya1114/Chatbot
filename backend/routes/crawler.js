@@ -112,7 +112,12 @@ function getPathLabel(pageUrl) {
   try {
     const parsed = new URL(pageUrl);
     if (parsed.pathname === "/" || !parsed.pathname) return "home page";
-    return parsed.pathname.replace(/^\/+/, "").replace(/[-_/]+/g, " ");
+    return decodeURIComponent(parsed.pathname)
+      .replace(/^\/+/, "")
+      .replace(/\.[a-z0-9]{1,5}$/i, "")
+      .replace(/[-_./]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   } catch {
     return "page";
   }

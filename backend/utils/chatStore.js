@@ -50,7 +50,7 @@ async function initSession(sessionId, appId = "default", metadata = {}) {
 // Call this after EVERY message — both user and bot.
 //
 // message shape:
-//   { id, role: 'user'|'bot', content, source: 'faq'|'ai'|null, timestamp }
+//   { id, role: 'user'|'bot', content, source: 'faq'|'ai'|null, sourceUrl?, faqQuestion?, timestamp }
 //
 // Returns: true on success, false on failure
 // ============================================================
@@ -63,6 +63,8 @@ async function saveMessage(sessionId, message) {
     role:      message.role,
     content:   message.content,
     source:    message.source    || null,
+    sourceUrl: message.sourceUrl || null,
+    faqQuestion: message.faqQuestion || null,
     timestamp: message.timestamp || new Date().toISOString(),
   };
 

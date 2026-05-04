@@ -9,10 +9,18 @@ import { formatTime } from '../../utils/api';
 function MessageBubble({ message }) {
   const isUser = message.role === 'user';
 
+  const escapeHtml = (text) =>
+    String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
   // Format markdown-like bold (**text**) and newlines for display
   const formatContent = (text) => {
     if (!text) return '';
-    return text
+    return escapeHtml(text)
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **bold**
       .replace(/\n/g, '<br />');                          // line breaks
   };
@@ -38,6 +46,17 @@ function MessageBubble({ message }) {
           dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
           aria-label={`${isUser ? 'You' : 'Bot'}: ${message.content}`}
         />
+
+        {!isUser && message.sourceUrl && (
+          <a
+            className="message-source-link"
+            href={message.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View source
+          </a>
+        )}
 
         {/* Timestamp */}
         <span className="message-time">

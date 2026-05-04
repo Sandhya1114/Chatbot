@@ -338,6 +338,8 @@
       "border-bottom-left-radius:var(--cb-r-sm);",
       "box-shadow:var(--cb-shadow-sm);border:1px solid var(--cb-border-light);}",
       ".cb-bubble.bot strong{font-weight:600;color:var(--cb-primary-dark);}",
+      ".cb-source-link{font-size:11px;color:var(--cb-primary);padding:0 4px;text-decoration:none;}",
+      ".cb-source-link:hover{text-decoration:underline;color:var(--cb-primary-dark);}",
       ".cb-time{font-size:10px;color:var(--cb-muted);padding:0 4px;}",
 
       /* ── TYPING — matches .typing-indicator ── */
@@ -652,6 +654,10 @@
     html += formatContent(msg.content);
     html += '</div>';
 
+    if (!isUser && msg.sourceUrl) {
+      html += '<a class="cb-source-link" href="' + sanitize(msg.sourceUrl) + '" target="_blank" rel="noreferrer">View source</a>';
+    }
+
     // Timestamp
     html += '<span class="cb-time">' + fmtTime(msg.timestamp) + '</span>';
     html += '</div>';
@@ -824,6 +830,7 @@
           role:        "bot",
           content:     data.reply,
           source:      data.source,
+          sourceUrl:   data.sourceUrl || null,
           faqQuestion: data.faqQuestion,
           timestamp:   data.timestamp || new Date().toISOString(),
         };

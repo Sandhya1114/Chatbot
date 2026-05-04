@@ -141,6 +141,16 @@
   color: #065f46;
 }
 
+.message-source-link {
+  font-size: 11px;
+  color: var(--color-primary);
+  padding: 0 var(--spacing-xs);
+}
+
+.message-source-link:hover {
+  color: var(--color-primary-dark);
+}
+
 /* Timestamp below bubble */
 .message-time {
   font-size: 10px;

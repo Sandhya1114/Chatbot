@@ -27,6 +27,7 @@ const STOP_WORDS = new Set([
   "about","from","into","that","this","these","those","i","my","me",
   "your","you","we","our","they","their","it","its","and","or","but",
   "not","no","so","if","then","how","what","when","where","why","who",
+  "html","htm","php","aspx","jsp",
 ]);
 
 // ============================================================
