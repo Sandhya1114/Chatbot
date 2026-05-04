@@ -1,24 +1,17 @@
 // ============================================================
 // components/Chat/ChatWidget.jsx — Embeddable Library Entry Point
 //
-// This is the ONE component you drop into any app.
-//
 // Props:
-//   appId  (string) — namespace for this embed. Use a unique
-//                     identifier per product that embeds this
-//                     widget so sessions don't cross-contaminate.
-//                     Default: "default"
-//
-// Usage:
-//   <ChatWidget />                        // single app
-//   <ChatWidget appId="my-saas-app" />   // multi-tenant
+//   appId  (string) — namespace for this embed.
+//   showPill (bool) — show the "Need help? We're online" pill.
+//                     Default: true
 // ============================================================
 
 import React, { useState } from "react";
 import ChatWindow from "./ChatWindow";
 import "../../styles/ChatWidget.css";
 
-function ChatWidget({ appId = "default" }) {
+function ChatWidget({ appId = "default", showPill = true }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -27,6 +20,20 @@ function ChatWidget({ appId = "default" }) {
         <ChatWindow onClose={() => setIsOpen(false)} appId={appId} />
       )}
 
+      {/* "Need help? We're online" helper pill */}
+      {!isOpen && showPill && (
+        <div className="chat-launcher-pill">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          Need help?
+          <span className="chat-launcher-pill__label">We're online</span>
+        </div>
+      )}
+
+      {/* Main launcher button */}
       <button
         className="chat-launcher"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -34,14 +41,17 @@ function ChatWidget({ appId = "default" }) {
         aria-expanded={isOpen}
       >
         {isOpen ? (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          /* Close icon */
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
           </svg>
         ) : (
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" />
+          /* Chat icon */
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
           </svg>
         )}
+        {!isOpen && "Chat with us"}
       </button>
     </>
   );

@@ -1,12 +1,11 @@
 /* ============================================================
-   styles/EscalationModal.css - "Talk to Human" Modal Styles
+   styles/EscalationModal.css
    ============================================================ */
 
-/* Overlay/Backdrop */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -16,7 +15,6 @@
   padding: var(--spacing-md);
 }
 
-/* Modal Card */
 .modal {
   background: var(--color-bg-card);
   border-radius: var(--radius-xl);
@@ -27,7 +25,6 @@
   overflow: hidden;
 }
 
-/* Modal Header */
 .modal__header {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   padding: var(--spacing-lg) var(--spacing-xl);
@@ -62,7 +59,7 @@
 
 .modal__title {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
@@ -72,12 +69,10 @@
   margin-top: 4px;
 }
 
-/* Modal Body */
 .modal__body {
   padding: var(--spacing-xl);
 }
 
-/* Form Group */
 .form-group {
   margin-bottom: var(--spacing-md);
 }
@@ -103,6 +98,7 @@
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);
   font-size: 14px;
+  font-family: var(--font-family);
   color: var(--color-text-primary);
   background: var(--color-bg);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
@@ -112,7 +108,7 @@
 .form-input:focus,
 .form-textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(13, 158, 117, 0.12);
   background: white;
 }
 
@@ -124,11 +120,9 @@
 .form-textarea {
   resize: vertical;
   min-height: 80px;
-  font-family: var(--font-family);
   line-height: 1.5;
 }
 
-/* Error message for form validation */
 .form-error {
   font-size: 12px;
   color: var(--color-danger);
@@ -138,20 +132,19 @@
   gap: 4px;
 }
 
-/* Modal Actions */
 .modal__actions {
   display: flex;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-lg);
 }
 
-/* Base button styles */
 .btn {
   flex: 1;
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 600;
+  font-family: var(--font-family);
   cursor: pointer;
   border: none;
   transition: all var(--transition-fast);
@@ -187,7 +180,6 @@
   background: var(--color-border-light);
 }
 
-/* Spinner for loading state */
 .spinner {
   width: 16px;
   height: 16px;
@@ -197,7 +189,30 @@
   animation: spin 0.8s linear infinite;
 }
 
-/* Success State */
+.alert {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  animation: slideDown 0.3s ease;
+}
+
+.alert--error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.alert--success {
+  background: var(--color-primary-xlight);
+  color: var(--color-primary-dark);
+  border: 1px solid rgba(13, 158, 117, 0.2);
+}
+
 .modal__success {
   text-align: center;
   padding: var(--spacing-xl);
@@ -212,7 +227,7 @@
 
 .modal__success-title {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-primary);
   margin-bottom: var(--spacing-sm);
 }
