@@ -3,213 +3,709 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Acme SaaS — Demo Site</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>ChatBot Embed Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'DM Sans', sans-serif; background: #f8fafc; color: #0f172a; }
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --accent: #06b6d4;
+      --success: #10b981;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --border-soft: #eef2ff;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+      --shadow-md: 0 18px 40px rgba(79, 70, 229, 0.12);
+      --radius: 22px;
+      --radius-sm: 14px;
+      --mono: "JetBrains Mono", monospace;
+      --sans: "DM Sans", sans-serif;
+    }
 
-    /* NAV */
-    nav {
-      background: #fff; border-bottom: 1px solid #e2e8f0;
-      padding: 0 40px; height: 60px;
-      display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 100;
-      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at top left, rgba(79, 70, 229, 0.16), transparent 30%),
+        radial-gradient(circle at top right, rgba(6, 182, 212, 0.14), transparent 26%),
+        linear-gradient(180deg, #fdfdff 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
     }
-    .nav-logo { font-size: 17px; font-weight: 800; color: #4f46e5; letter-spacing: -0.02em; }
-    .nav-links { display: flex; gap: 8px; }
-    .nav-link {
-      padding: 7px 16px; border-radius: 9999px; font-size: 13px; font-weight: 600;
-      color: #475569; text-decoration: none; transition: all 150ms;
-    }
-    .nav-link:hover { background: #f1f5f9; color: #0f172a; }
-    .nav-link.primary { background: #4f46e5; color: #fff; }
-    .nav-link.primary:hover { background: #3730a3; }
 
-    /* HERO */
-    .hero {
-      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
-      color: #fff; padding: 90px 40px; text-align: center;
-      position: relative; overflow: hidden;
-    }
-    .hero::before, .hero::after {
-      content: ''; position: absolute; border-radius: 50%;
-      background: rgba(255,255,255,.06);
-    }
-    .hero::before { width: 500px; height: 500px; top: -200px; left: -100px; }
-    .hero::after  { width: 300px; height: 300px; bottom: -100px; right: -60px; }
-    .hero-badge {
-      display: inline-block; padding: 5px 14px;
-      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
-      border-radius: 9999px; font-size: 12px; font-weight: 700;
-      letter-spacing: .05em; text-transform: uppercase; margin-bottom: 24px;
-    }
-    .hero h1 {
-      font-size: clamp(32px, 5vw, 56px); font-weight: 800; letter-spacing: -0.03em;
-      margin-bottom: 18px; line-height: 1.1; position: relative; z-index: 1;
-    }
-    .hero p {
-      font-size: 18px; opacity: .82; max-width: 500px;
-      margin: 0 auto 36px; line-height: 1.6; position: relative; z-index: 1;
-    }
-    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; position: relative; z-index: 1; }
-    .btn-white {
-      background: #fff; color: #4f46e5;
-      padding: 13px 28px; border-radius: 9999px;
-      font-weight: 700; font-size: 15px; border: none; cursor: pointer;
-      transition: all 150ms;
-    }
-    .btn-white:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.2); }
-    .btn-outline {
-      background: rgba(255,255,255,.12); color: #fff;
-      padding: 13px 28px; border-radius: 9999px;
-      font-weight: 600; font-size: 15px;
-      border: 1.5px solid rgba(255,255,255,.3);
-      text-decoration: none; display: inline-flex; align-items: center;
-      transition: all 150ms;
-    }
-    .btn-outline:hover { background: rgba(255,255,255,.22); }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; border: 0; cursor: pointer; }
 
-    /* FEATURES */
-    section { padding: 80px 40px; max-width: 1000px; margin: 0 auto; }
-    section h2 {
-      text-align: center; font-size: 32px; font-weight: 800;
-      margin-bottom: 48px; letter-spacing: -0.02em;
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
     }
-    .features {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;
-    }
-    .feature-card {
-      background: #fff; border-radius: 16px; padding: 28px 24px;
-      border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.05);
-      transition: all 150ms;
-    }
-    .feature-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.08); transform: translateY(-2px); }
-    .feature-icon { font-size: 32px; margin-bottom: 12px; }
-    .feature-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-    .feature-desc { font-size: 14px; color: #64748b; line-height: 1.6; }
 
-    /* CHAT CTA */
-    .chat-cta {
-      background: #f1f5f9; border-top: 1px solid #e2e8f0;
-      padding: 60px 40px; text-align: center;
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(16px);
+      border-radius: 999px;
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 18px;
+      z-index: 10;
     }
-    .chat-cta h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    .chat-cta p { font-size: 14px; color: #64748b; margin-bottom: 20px; }
-    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    .btn-indigo {
-      background: #4f46e5; color: #fff; padding: 11px 24px; border-radius: 9999px;
-      font-weight: 700; font-size: 14px; border: none; cursor: pointer; transition: all 150ms;
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
     }
-    .btn-indigo:hover { background: #3730a3; }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      box-shadow: 0 12px 24px rgba(79, 70, 229, 0.22);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .chip,
+    .btn {
+      border-radius: 999px;
+      padding: 11px 18px;
+      transition: transform 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .chip {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .chip:hover {
+      background: #eef2ff;
+      color: var(--primary-dark);
+    }
+
+    .btn {
+      font-weight: 800;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      box-shadow: 0 14px 28px rgba(79, 70, 229, 0.25);
+    }
+    .btn-secondary {
+      color: var(--primary-dark);
+      background: #fff;
+      border: 1px solid #dbe4ff;
+    }
     .btn-ghost {
-      background: #fff; color: #4f46e5; padding: 11px 24px; border-radius: 9999px;
-      font-weight: 600; font-size: 14px; border: 1.5px solid #c7d2fe; cursor: pointer; transition: all 150ms;
-      text-decoration: none; display: inline-block;
-    }
-    .btn-ghost:hover { background: #f5f3ff; }
-
-    footer {
-      border-top: 1px solid #e2e8f0; padding: 24px 40px;
-      text-align: center; font-size: 13px; color: #94a3b8;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.24);
     }
 
-    @media (max-width: 600px) {
-      nav { padding: 0 16px; }
-      .hero, section { padding-left: 20px; padding-right: 20px; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 28px;
+      padding: 36px 0 28px;
+      align-items: stretch;
+    }
+
+    .hero-card,
+    .panel,
+    .feature,
+    .code-card {
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      box-shadow: var(--shadow-md);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero-card {
+      border-radius: 34px;
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::before,
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .hero-card::before {
+      width: 320px;
+      height: 320px;
+      top: -140px;
+      right: -120px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.22), transparent 70%);
+    }
+
+    .hero-card::after {
+      width: 280px;
+      height: 280px;
+      bottom: -140px;
+      left: -80px;
+      background: radial-gradient(circle, rgba(79, 70, 229, 0.18), transparent 72%);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .hero h1 {
+      font-size: clamp(38px, 6vw, 72px);
+      line-height: 0.98;
+      letter-spacing: -0.05em;
+      margin-bottom: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero p {
+      font-size: 18px;
+      line-height: 1.65;
+      color: var(--muted);
+      max-width: 640px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 30px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .meta-item {
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid var(--border-soft);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .meta-value {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+
+    .meta-label {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .panel {
+      border-radius: 30px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-head h2,
+    .section-head h2 {
+      font-size: 28px;
+      letter-spacing: -0.04em;
+      margin-bottom: 8px;
+    }
+
+    .panel-head p,
+    .section-head p {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .stack-card {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .stack-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .stack-card p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .section {
+      padding: 18px 0 10px;
+    }
+
+    .section-head {
+      max-width: 760px;
+      margin-bottom: 24px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .feature {
+      border-radius: 24px;
+      padding: 24px;
+    }
+
+    .feature-tag {
+      display: inline-flex;
+      margin-bottom: 14px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: #eef2ff;
+      color: var(--primary-dark);
+    }
+
+    .feature h3 {
+      font-size: 20px;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+    }
+
+    .feature p {
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .install-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .code-card,
+    .guide-card {
+      border-radius: 28px;
+      padding: 24px;
+    }
+
+    .guide-card {
+      background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+      color: #fff;
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: 0 26px 48px rgba(15, 23, 42, 0.24);
+    }
+
+    .guide-card h3 {
+      font-size: 26px;
+      letter-spacing: -0.04em;
+      margin-bottom: 12px;
+    }
+
+    .guide-card p {
+      color: rgba(255, 255, 255, 0.76);
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    .guide-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .guide-item {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .guide-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .guide-item span {
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .code-card {
+      position: relative;
+    }
+
+    .code-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .code-head h3 {
+      font-size: 24px;
+      letter-spacing: -0.04em;
+    }
+
+    .code-head p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .copy-btn {
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: #111827;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      min-width: 108px;
+    }
+
+    .copy-btn[data-state="copied"] {
+      background: var(--success);
+    }
+
+    pre {
+      overflow: auto;
+      padding: 20px;
+      border-radius: 22px;
+      background: #0f172a;
+      color: #dbeafe;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.65;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 28px 0 42px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .foot strong {
+      color: var(--text);
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .install-grid,
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell { padding: 16px; }
+      .nav {
+        border-radius: 24px;
+        padding: 16px;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .nav-links { width: 100%; justify-content: flex-start; }
+      .hero-card,
+      .panel,
+      .code-card,
+      .guide-card,
+      .feature { padding: 22px; }
+      .hero-meta,
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero h1 { font-size: 42px; }
+      .copy-btn { width: 100%; }
+      .code-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand">
+        <div class="brand-mark">CB</div>
+        <div>
+          <div>ChatBot Embed</div>
+          <div style="font-size:13px;color:var(--muted);font-weight:600;">Public script + crawl-ready admin</div>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a class="chip" href="#features">Features</a>
+        <a class="chip" href="#install">Install</a>
+        <a class="chip" href="/admin">Admin</a>
+        <button class="btn btn-primary" type="button" onclick="window.chatbotDemo && window.chatbotDemo.open()">Open Chat</button>
+      </div>
+    </nav>
 
-<nav>
-  <div class="nav-logo">🚀 Acme SaaS</div>
-  <div class="nav-links">
-    <a href="#features" class="nav-link">Features</a>
-    <a href="admin.html" class="nav-link">📊 Admin</a>
-    <a href="#" class="nav-link primary" onclick="window._cb && window._cb.open()">💬 Chat</a>
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">Latest public demo</div>
+        <h1>Embed the chatbot on any website, then crawl content into it.</h1>
+        <p>
+          This public version now matches the newer admin workflow: upload FAQs, crawl websites or PDFs,
+          and drop the widget onto client sites with a single script tag.
+        </p>
+
+        <div class="hero-actions">
+          <button class="btn btn-primary" type="button" onclick="window.chatbotDemo && window.chatbotDemo.open()">Launch Widget</button>
+          <a class="btn btn-secondary" href="/admin">Open Admin</a>
+          <a class="btn btn-ghost" href="#install">Copy Embed Code</a>
+        </div>
+
+        <div class="hero-meta">
+          <div class="meta-item">
+            <div class="meta-value">1 tag</div>
+            <div class="meta-label">Works as a plain script include on customer sites.</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-value">1 panel</div>
+            <div class="meta-label">Admin UI for analytics, FAQs, crawl jobs, and escalations.</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-value">Any URL</div>
+            <div class="meta-label">Website and PDF crawl flow writes route-aware FAQ entries.</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>How it fits together</h2>
+          <p>Your backend hosts both the public widget script and the admin tools.</p>
+        </div>
+        <div class="stack">
+          <div class="stack-card">
+            <strong>Step 1. Add content</strong>
+            <p>Upload JSON, CSV, or PDF files, or crawl a live website from the admin dashboard.</p>
+          </div>
+          <div class="stack-card">
+            <strong>Step 2. Share the script</strong>
+            <p>Clients paste your hosted `chatbot.js` snippet onto their site and point it at this backend.</p>
+          </div>
+          <div class="stack-card">
+            <strong>Step 3. Chat and escalate</strong>
+            <p>Visitors get FAQ answers, AI fallbacks, history restore, and human escalation when needed.</p>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section" id="features">
+      <div class="section-head">
+        <h2>Built for public embed delivery</h2>
+        <p>
+          The backend public folder is now aligned with the newer frontend direction so you can demo,
+          install, and manage the widget from one place.
+        </p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature">
+          <div class="feature-tag">Widget</div>
+          <h3>Script-tag ready</h3>
+          <p>The chatbot can be loaded from your backend on any website without a React build on the client side.</p>
+        </article>
+        <article class="feature">
+          <div class="feature-tag">Crawler</div>
+          <h3>Website and PDF ingest</h3>
+          <p>The admin page can crawl route content, discover internal links, and save clean FAQ entries automatically.</p>
+        </article>
+        <article class="feature">
+          <div class="feature-tag">Knowledge</div>
+          <h3>Flexible FAQ updates</h3>
+          <p>Append or replace the FAQ database using JSON, CSV, PDF uploads, or crawl-generated content.</p>
+        </article>
+        <article class="feature">
+          <div class="feature-tag">Support</div>
+          <h3>Escalation workflow</h3>
+          <p>Users can fall back to a human request flow while admins review escalations in one dashboard.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="install">
+      <div class="install-grid">
+        <div class="guide-card">
+          <h3>Use this on client sites</h3>
+          <p>
+            Host the backend publicly, then give clients the snippet below. They only need to replace
+            the `appId` value if you want a separate identifier per site.
+          </p>
+          <div class="guide-list">
+            <div class="guide-item">
+              <strong>Public script URL</strong>
+              <span>`/chatbot.js` is served by the backend, so any website can load it from your domain.</span>
+            </div>
+            <div class="guide-item">
+              <strong>API endpoint</strong>
+              <span>Set `apiUrl` to the same backend domain so the widget can call chat, FAQ, and escalation APIs.</span>
+            </div>
+            <div class="guide-item">
+              <strong>Crawler workflow</strong>
+              <span>Open the admin dashboard first, crawl the website or upload FAQs, then deploy the same widget on that site.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="code-card">
+          <div class="code-head">
+            <div>
+              <h3>Embed snippet</h3>
+              <p>Copy this into any website that should load your chatbot.</p>
+            </div>
+            <button class="copy-btn" id="copy-embed" type="button">Copy code</button>
+          </div>
+          <pre><code id="embed-code"></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <div><strong>Admin dashboard:</strong> upload FAQs, crawl websites, review escalations.</div>
+      <div><strong>Widget script:</strong> served from this backend for same-origin or external install.</div>
+    </footer>
   </div>
-</nav>
 
-<div class="hero">
-  <div class="hero-badge">⚡ AI-Powered Support · Live Now</div>
-  <h1>The All-In-One<br>SaaS Platform</h1>
-  <p>Work smarter with powerful tools, deep analytics, and 24/7 AI-powered support built in.</p>
-  <div class="hero-btns">
-    <button class="btn-white" onclick="window._cb && window._cb.open()">💬 Try the Chatbot</button>
-    <a href="admin.html" class="btn-outline">📊 Open Admin Panel →</a>
-  </div>
-</div>
+  <script src="/chatbot.js"></script>
+  <script>
+    (function () {
+      var origin = window.location.origin.replace(/\/$/, "");
+      var embedCode = [
+        '<script src="' + origin + '/chatbot.js"><\\/script>',
+        '<script>',
+        '  window.supportBot = initChatbot({',
+        '    apiUrl: "' + origin + '",',
+        '    appId: "customer-site",',
+        '    bot: {',
+        '      name: "Support Assistant",',
+        '      avatar: "AI",',
+        '      status: "Online - instant replies"',
+        '    },',
+        '    theme: {',
+        '      primary: "#4f46e5"',
+        '    }',
+        '  });',
+        '<\\/script>'
+      ].join('\n');
 
-<section id="features">
-  <h2>Everything you need</h2>
-  <div class="features">
-    <div class="feature-card">
-      <div class="feature-icon">⚡</div>
-      <div class="feature-title">Lightning Fast</div>
-      <div class="feature-desc">Optimized for performance with 99.9% uptime SLA and global CDN.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🔒</div>
-      <div class="feature-title">Secure by Default</div>
-      <div class="feature-desc">Enterprise-grade encryption, SOC 2 certified, and GDPR compliant.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📊</div>
-      <div class="feature-title">Deep Analytics</div>
-      <div class="feature-desc">Real-time insights into team productivity and customer interactions.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🤝</div>
-      <div class="feature-title">50+ Integrations</div>
-      <div class="feature-desc">Works with Slack, Jira, Salesforce, HubSpot, Zapier, and more.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📱</div>
-      <div class="feature-title">Mobile Ready</div>
-      <div class="feature-desc">Native apps for iOS and Android. Your data syncs in real time.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🛟</div>
-      <div class="feature-title">24/7 AI Support</div>
-      <div class="feature-desc">AI chat answers FAQs instantly and escalates to humans when needed.</div>
-    </div>
-  </div>
-</section>
+      document.getElementById("embed-code").textContent = embedCode;
 
-<div class="chat-cta">
-  <h3>💬 Have a question? We're here to help!</h3>
-  <p>Ask the AI chatbot anything — it knows all our FAQs and can connect you with a human agent.</p>
-  <div class="cta-row">
-    <button class="btn-indigo" onclick="window._cb && window._cb.open()">Open Chat Widget</button>
-    <a href="admin.html" class="btn-ghost">📊 Admin Dashboard</a>
-  </div>
-</div>
+      document.getElementById("copy-embed").addEventListener("click", function () {
+        var button = this;
+        navigator.clipboard.writeText(embedCode).then(function () {
+          button.textContent = "Copied";
+          button.setAttribute("data-state", "copied");
+          setTimeout(function () {
+            button.textContent = "Copy code";
+            button.removeAttribute("data-state");
+          }, 1800);
+        });
+      });
 
-<footer>
-  Acme SaaS Platform · ChatBot Embed Library Demo · Running on localhost:5000
-</footer>
-
-<!-- ══════════════════════════════════════════════════
-     CHATBOT EMBED — This is all you need on any site!
-     apiUrl is empty = same-origin (backend is on same server)
-════════════════════════════════════════════════════ -->
-<script src="/chatbot.js"></script>
-<script>
-  window._cb = initChatbot({
-    apiUrl: "",          // Empty = same server (localhost:5000)
-    appId:  "demo-site",
-    bot: {
-      name:   "Aria",
-      avatar: "🤖",
-      status: "Online · Typically replies instantly",
-    },
-    theme: {
-      primary: "#4f46e5",
-    },
-  });
-</script>
-
+      window.chatbotDemo = initChatbot({
+        apiUrl: "",
+        appId: "demo-site",
+        bot: {
+          name: "Aria",
+          avatar: "AI",
+          status: "Online - instant replies"
+        },
+        theme: {
+          primary: "#4f46e5",
+          primaryDark: "#3730a3",
+          primaryLight: "#818cf8",
+          accent: "#06b6d4"
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -1103,7 +1103,45 @@
   // ─────────────────────────────────────────────────────────────
   // PUBLIC API — returned from initChatbot()
   // ─────────────────────────────────────────────────────────────
+  function createDeferredApi() {
+    var resolvedApi = null;
+    var queuedCalls = [];
+    var readyResolve = function () {};
+    var ready = new Promise(function (resolve) {
+      readyResolve = resolve;
+    });
+
+    function invoke(method, args) {
+      if (resolvedApi) {
+        return resolvedApi[method].apply(resolvedApi, args);
+      }
+      queuedCalls.push({ method: method, args: args });
+      return undefined;
+    }
+
+    return {
+      api: {
+        open: function () { return invoke("open", arguments); },
+        close: function () { return invoke("close", arguments); },
+        sendMessage: function () { return invoke("sendMessage", arguments); },
+        clearHistory: function () { return invoke("clearHistory", arguments); },
+        destroy: function () { return invoke("destroy", arguments); },
+        ready: ready,
+      },
+      resolve: function (api) {
+        resolvedApi = api;
+        readyResolve(api);
+        while (queuedCalls.length) {
+          var call = queuedCalls.shift();
+          resolvedApi[call.method].apply(resolvedApi, call.args);
+        }
+      },
+    };
+  }
+
   function initChatbot(userConfig) {
+    var deferred = createDeferredApi();
+
     function boot() {
       var cfg   = mergeConfig(userConfig);
       var state = createState(cfg);
@@ -1148,13 +1186,17 @@
       };
     }
 
-    // Wait for DOM if needed
+    // Return a stable API immediately so script-tag installs can call methods
+    // even if the host page invokes initChatbot() before DOMContentLoaded.
     if (document.readyState === "loading") {
-      return new Promise(function (resolve) {
-        document.addEventListener("DOMContentLoaded", function () { resolve(boot()); });
+      document.addEventListener("DOMContentLoaded", function () {
+        deferred.resolve(boot());
       });
+      return deferred.api;
     }
-    return boot();
+
+    deferred.resolve(boot());
+    return deferred.api;
   }
 
   global.initChatbot = initChatbot;

@@ -3,681 +3,1736 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChatBot Admin Dashboard</title>
+  <title>ChatBot Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --color-primary:#4f46e5; --color-primary-dark:#3730a3; --color-primary-light:#818cf8;
-      --color-success:#10b981; --color-warning:#f59e0b; --color-danger:#ef4444;
-      --color-bg:#f8fafc; --color-bg-card:#ffffff; --color-bg-chat:#f1f5f9;
-      --color-border:#e2e8f0; --color-border-light:#f1f5f9;
-      --color-text-primary:#0f172a; --color-text-secondary:#475569; --color-text-muted:#94a3b8;
-      --font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
-      --font-mono:'JetBrains Mono','Courier New',monospace;
-      --radius-sm:6px; --radius-md:12px; --radius-lg:16px; --radius-xl:24px; --radius-full:9999px;
-      --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
-      --shadow-md:0 4px 6px -1px rgba(0,0,0,.08),0 2px 4px -2px rgba(0,0,0,.06);
-      --shadow-xl:0 20px 25px -5px rgba(0,0,0,.12),0 8px 10px -6px rgba(0,0,0,.08);
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --primary-light: #818cf8;
+      --accent: #06b6d4;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --chat: #f1f5f9;
+      --border: #e2e8f0;
+      --border-soft: #eef2ff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --faint: #94a3b8;
+      --radius: 18px;
+      --radius-lg: 24px;
+      --radius-full: 999px;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+      --shadow-md: 0 18px 36px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 26px 56px rgba(79, 70, 229, 0.14);
+      --sans: "DM Sans", sans-serif;
+      --mono: "JetBrains Mono", monospace;
     }
-    html { scroll-behavior:smooth; }
-    body { font-family:var(--font-family); background:var(--color-bg); color:var(--color-text-primary); -webkit-font-smoothing:antialiased; min-height:100vh; }
-    button { font-family:var(--font-family); cursor:pointer; border:none; background:none; }
-    input,textarea,select { font-family:var(--font-family); }
-    ::-webkit-scrollbar { width:6px; }
-    ::-webkit-scrollbar-thumb { background:var(--color-border); border-radius:var(--radius-full); }
 
-    /* NAV */
-    .admin-nav {
-      background:var(--color-bg-card); border-bottom:1px solid var(--color-border);
-      padding:0 32px; display:flex; align-items:center; height:64px;
-      position:sticky; top:0; z-index:100; box-shadow:var(--shadow-sm); gap:16px;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at top left, rgba(79, 70, 229, 0.12), transparent 24%),
+        radial-gradient(circle at top right, rgba(6, 182, 212, 0.12), transparent 20%),
+        linear-gradient(180deg, #fbfcff 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
     }
-    .nav-brand { display:flex; align-items:center; gap:10px; flex-shrink:0; }
-    .nav-logo {
-      width:36px; height:36px;
-      background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));
-      border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-size:18px;
-    }
-    .nav-title { font-size:18px; font-weight:700; letter-spacing:-0.02em; }
-    .nav-sub { font-size:12px; color:var(--color-text-muted); }
-    .nav-api {
-      display:flex; align-items:center; gap:8px; background:var(--color-bg);
-      border:1px solid var(--color-border); border-radius:var(--radius-full);
-      padding:4px 4px 4px 14px; flex:1; max-width:400px;
-    }
-    .nav-api input {
-      border:none; background:transparent; outline:none;
-      font-size:13px; color:var(--color-text-primary); font-family:var(--font-mono); flex:1; min-width:0;
-    }
-    .nav-api input::placeholder { color:var(--color-text-muted); }
-    .btn-connect {
-      padding:5px 14px; border-radius:var(--radius-full); background:var(--color-primary);
-      color:#fff; font-size:12px; font-weight:700; white-space:nowrap;
-    }
-    .btn-connect:hover { background:var(--color-primary-dark); }
-    #api-status { font-size:11px; padding:3px 10px; border-radius:var(--radius-full); white-space:nowrap; font-weight:600; }
-    .s-ok  { background:#d1fae5; color:#065f46; }
-    .s-err { background:#fef2f2; color:#991b1b; }
-    .nav-tabs { display:flex; gap:4px; margin-left:auto; flex-shrink:0; }
-    .nav-tab {
-      padding:7px 16px; border-radius:var(--radius-full); font-size:13px; font-weight:500;
-      color:var(--color-text-secondary); transition:all 150ms; cursor:pointer;
-    }
-    .nav-tab:hover { background:var(--color-bg-chat); color:var(--color-text-primary); }
-    .nav-tab.active { background:var(--color-primary); color:#fff; }
 
-    /* CONTENT */
-    .content { max-width:1100px; margin:0 auto; padding:32px; }
-    .page { display:none; }
-    .page.active { display:block; }
+    button, input, textarea { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    input, textarea {
+      border: 1px solid var(--border);
+      outline: none;
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+    input:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.10);
+    }
 
-    /* SECTION HEADER */
-    .sec-hd { margin-bottom:28px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; }
-    .sec-title { font-size:24px; font-weight:700; letter-spacing:-0.02em; }
-    .sec-sub { font-size:14px; color:var(--color-text-secondary); margin-top:4px; }
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 22px;
+    }
 
-    /* ANALYTICS GRID */
-    .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:32px; }
+    .nav {
+      position: sticky;
+      top: 18px;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: auto minmax(260px, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 20px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      box-shadow: 0 14px 28px rgba(79, 70, 229, 0.22);
+    }
+
+    .brand h1 {
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .brand p {
+      font-size: 12px;
+      color: var(--faint);
+      margin-top: 2px;
+    }
+
+    .api-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--border);
+    }
+
+    .api-bar span {
+      flex-shrink: 0;
+      padding-left: 12px;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .api-bar input {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      box-shadow: none;
+    }
+
+    .api-bar input:focus { box-shadow: none; }
+
+    .status {
+      flex-shrink: 0;
+      padding: 10px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .status.ok {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status.bad {
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: var(--radius-full);
+      padding: 11px 18px;
+      font-size: 13px;
+      font-weight: 800;
+      transition: transform 150ms ease, background 150ms ease, color 150ms ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; }
+    .btn-secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .btn-small { padding: 8px 14px; font-size: 12px; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border-radius: var(--radius-full);
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .tab.active {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      box-shadow: 0 14px 26px rgba(79, 70, 229, 0.18);
+    }
+
+    .content {
+      padding: 24px 0 48px;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+
+    .section-head h2 {
+      font-size: 30px;
+      letter-spacing: -0.04em;
+      margin-bottom: 6px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 720px;
+    }
+
+    .card,
+    .stats,
+    .table-wrap,
+    .dropzone,
+    .crawl-box,
+    .faq-card,
+    .log-box {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      border-radius: 26px;
+      box-shadow: var(--shadow-md);
+      backdrop-filter: blur(16px);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
     .stat-card {
-      background:var(--color-bg-card); border-radius:var(--radius-lg); padding:24px;
-      border:1px solid var(--color-border); box-shadow:var(--shadow-sm);
-      transition:box-shadow 150ms,transform 150ms;
+      padding: 22px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      border: 1px solid var(--border-soft);
     }
-    .stat-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
-    .stat-icon { width:44px; height:44px; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; font-size:20px; margin-bottom:16px; }
-    .i-purple { background:#ede9fe; } .i-green { background:#d1fae5; }
-    .i-blue { background:#dbeafe; }   .i-amber { background:#fef3c7; }
-    .stat-val { font-size:36px; font-weight:800; letter-spacing:-0.03em; line-height:1; margin-bottom:4px; }
-    .stat-label { font-size:13px; color:var(--color-text-secondary); font-weight:500; }
-    .stat-pct { font-size:12px; color:var(--color-text-muted); margin-top:4px; }
 
-    /* TABLE */
-    .tbl-wrap { background:var(--color-bg-card); border-radius:var(--radius-lg); border:1px solid var(--color-border); box-shadow:var(--shadow-sm); overflow:hidden; }
-    .tbl-hd { padding:16px 20px; border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
-    .tbl-title { font-size:15px; font-weight:700; }
-    .tbl-count { font-size:12px; color:var(--color-text-muted); padding:2px 10px; background:var(--color-bg-chat); border-radius:var(--radius-full); }
-    .tbl-scroll { overflow-x:auto; }
-    table { width:100%; border-collapse:collapse; }
-    thead th {
-      background:var(--color-bg-chat); padding:10px 16px; text-align:left;
-      font-size:11px; font-weight:700; color:var(--color-text-muted);
-      text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--color-border); white-space:nowrap;
+    .stat-card span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      font-weight: 800;
+      margin-bottom: 14px;
     }
-    tbody td { padding:12px 16px; font-size:13px; border-bottom:1px solid var(--color-border-light); vertical-align:middle; }
-    tbody tr:last-child td { border-bottom:none; }
-    tbody tr:hover td { background:var(--color-bg-chat); }
-    .badge { padding:2px 10px; border-radius:var(--radius-full); font-size:11px; font-weight:600; text-transform:capitalize; }
-    .b-pending  { background:#fef3c7; color:#92400e; }
-    .b-progress { background:#dbeafe; color:#1e40af; }
-    .b-resolved { background:#d1fae5; color:#065f46; }
-    .preview { max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; color:var(--color-text-muted); }
 
-    /* FAQ LIST */
-    .faq-bar { display:flex; gap:10px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
-    .search { flex:1; min-width:200px; padding:8px 14px; border:1.5px solid var(--color-border); border-radius:var(--radius-full); font-size:13px; outline:none; }
-    .search:focus { border-color:var(--color-primary); }
-    .faq-list { display:flex; flex-direction:column; gap:10px; }
+    .stat-card.total span { background: #ede9fe; color: var(--primary-dark); }
+    .stat-card.faq span { background: #dcfce7; color: #166534; }
+    .stat-card.ai span { background: #dbeafe; color: #1d4ed8; }
+    .stat-card.esc span { background: #fef3c7; color: #92400e; }
+
+    .stat-card strong {
+      display: block;
+      font-size: 34px;
+      line-height: 1;
+      letter-spacing: -0.05em;
+      margin-bottom: 6px;
+    }
+
+    .stat-card p {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .stat-card small {
+      display: block;
+      margin-top: 6px;
+      color: var(--faint);
+      font-size: 12px;
+    }
+
+    .table-wrap {
+      overflow: hidden;
+    }
+
+    .table-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .table-head h3 {
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .table-count {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--chat);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .table-scroll { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 14px 18px;
+      text-align: left;
+      border-bottom: 1px solid #eef2f7;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    td {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    tbody tr:hover td { background: #fbfdff; }
+    tbody tr:last-child td { border-bottom: 0; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: capitalize;
+    }
+
+    .badge.pending { background: #fef3c7; color: #92400e; }
+    .badge.progress { background: #dbeafe; color: #1d4ed8; }
+    .badge.resolved { background: #dcfce7; color: #166534; }
+
+    .preview {
+      max-width: 320px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--muted);
+    }
+
+    .empty,
+    .loading {
+      padding: 42px 24px;
+      text-align: center;
+      color: var(--faint);
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      animation: spin 0.8s linear infinite;
+    }
+
+    .alert {
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 700;
+      display: none;
+    }
+
+    .alert.ok { display: block; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .alert.err { display: block; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .alert.warn { display: block; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+    .faq-toolbar,
+    .crawl-toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .faq-toolbar input,
+    .crawl-toolbar input,
+    .crawl-toolbar textarea,
+    .modal-body input,
+    .modal-body textarea {
+      width: 100%;
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .grow { flex: 1; min-width: 220px; }
+
+    .dropzone {
+      padding: 28px;
+      margin-bottom: 18px;
+      border: 2px dashed #d8deef;
+      background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+      transition: border-color 150ms ease, transform 150ms ease;
+      text-align: center;
+    }
+
+    .dropzone.over {
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .dropzone input { display: none; }
+    .dropzone h3 {
+      font-size: 18px;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .dropzone p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .hint-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      justify-content: center;
+    }
+
+    .hint {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: var(--primary-dark);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .toggle-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .faq-list {
+      display: grid;
+      gap: 12px;
+    }
+
     .faq-card {
-      background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:var(--radius-lg);
-      padding:18px 20px; box-shadow:var(--shadow-sm); transition:box-shadow 150ms,border-color 150ms;
+      padding: 20px 22px;
     }
-    .faq-card:hover { box-shadow:var(--shadow-md); border-color:rgba(79,70,229,.3); }
-    .faq-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-    .faq-q { font-size:14px; font-weight:700; line-height:1.4; }
-    .faq-id { font-family:var(--font-mono); font-size:10px; color:var(--color-text-muted); margin-top:3px; }
-    .faq-a { font-size:13px; color:var(--color-text-secondary); margin-top:8px; line-height:1.55; white-space:pre-line; }
-    .kw-wrap { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
-    .kw { padding:2px 9px; border-radius:var(--radius-full); background:#ede9fe; color:var(--color-primary); font-size:11px; font-family:var(--font-mono); }
-    .faq-acts { display:flex; gap:6px; flex-shrink:0; }
 
-    /* UPLOAD */
-    .upload-box {
-      border:2px dashed var(--color-border); border-radius:var(--radius-lg); padding:48px 24px;
-      text-align:center; background:var(--color-bg-card); transition:all 150ms; cursor:pointer; position:relative; margin-bottom:14px;
+    .faq-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
     }
-    .upload-box:hover,.upload-box.over { border-color:var(--color-primary); background:#f5f3ff; }
-    .upload-box input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-    .upload-icon { font-size:40px; display:block; margin-bottom:12px; }
-    .upload-title { font-size:16px; font-weight:600; margin-bottom:4px; }
-    .upload-hint { font-size:13px; color:var(--color-text-muted); }
-    .upload-fmts { display:flex; justify-content:center; gap:8px; margin-top:12px; }
-    .fmt { padding:3px 10px; border-radius:var(--radius-full); border:1px solid var(--color-border); font-size:11px; font-family:var(--font-mono); color:var(--color-text-muted); }
-    .upload-opts { display:flex; gap:16px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
-    .upload-opts label { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--color-text-secondary); cursor:pointer; }
-    .upload-opts input[type=checkbox] { accent-color:var(--color-primary); width:14px; height:14px; }
 
-    /* ALERTS */
-    .alert { padding:10px 16px; border-radius:var(--radius-md); font-size:13px; font-weight:500; margin-bottom:16px; display:flex; align-items:center; gap:8px; animation:slideDown .3s ease; }
-    .a-ok   { background:#d1fae5; color:#065f46; border:1px solid #a7f3d0; }
-    .a-err  { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
-    .a-warn { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
-
-    /* BUTTONS */
-    .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 18px; border-radius:var(--radius-md); font-size:13px; font-weight:600; cursor:pointer; border:none; transition:all 150ms; white-space:nowrap; }
-    .btn:disabled { opacity:.65; cursor:not-allowed; }
-    .btn-primary { background:var(--color-primary); color:#fff; }
-    .btn-primary:hover:not(:disabled) { background:var(--color-primary-dark); transform:translateY(-1px); }
-    .btn-secondary { background:var(--color-bg-chat); color:var(--color-text-secondary); border:1.5px solid var(--color-border); }
-    .btn-secondary:hover:not(:disabled) { background:var(--color-border-light); }
-    .btn-danger { background:#fef2f2; color:var(--color-danger); border:1px solid #fecaca; }
-    .btn-danger:hover:not(:disabled) { background:#fee2e2; }
-    .btn-sm { padding:5px 12px; font-size:12px; }
-
-    /* MODAL */
-    .overlay { position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:1100; padding:16px; animation:fadeIn .2s ease; }
-    .overlay.hidden { display:none; }
-    .modal { background:var(--color-bg-card); border-radius:var(--radius-xl); width:100%; max-width:500px; box-shadow:var(--shadow-xl); overflow:hidden; animation:slideUp .3s cubic-bezier(.34,1.56,.64,1); max-height:90vh; overflow-y:auto; }
-    .modal-hd { background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark)); padding:20px 24px; color:#fff; }
-    .modal-title { font-size:18px; font-weight:700; }
-    .modal-sub { font-size:13px; color:rgba(255,255,255,.75); margin-top:3px; }
-    .modal-body { padding:24px; }
-    .modal-ft { padding:16px 24px; border-top:1px solid var(--color-border); display:flex; gap:10px; justify-content:flex-end; }
-    .fg { margin-bottom:16px; }
-    .fl { display:block; font-size:12px; font-weight:700; color:var(--color-text-secondary); margin-bottom:6px; text-transform:uppercase; letter-spacing:.05em; }
-    .fi,.ft {
-      width:100%; padding:8px 14px; border:1.5px solid var(--color-border); border-radius:var(--radius-md);
-      font-size:13px; color:var(--color-text-primary); background:var(--color-bg); outline:none;
-      transition:border-color 150ms,box-shadow 150ms;
+    .faq-question {
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.45;
+      letter-spacing: -0.02em;
     }
-    .fi:focus,.ft:focus { border-color:var(--color-primary); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
-    .ft { resize:vertical; min-height:100px; line-height:1.55; }
 
-    /* DRAWER */
-    .drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:900; animation:fadeIn .2s ease; }
-    .drawer-overlay.hidden { display:none; }
+    .faq-id {
+      color: var(--faint);
+      font-size: 11px;
+      margin-top: 5px;
+      font-family: var(--mono);
+    }
+
+    .faq-answer {
+      margin-top: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+      white-space: pre-line;
+      font-size: 14px;
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .chip {
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      background: #eef2ff;
+      color: var(--primary-dark);
+      font-family: var(--mono);
+    }
+
+    .faq-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .crawl-box {
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    .crawl-box p {
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .crawl-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr);
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .log-box {
+      padding: 20px;
+      background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+      color: #e2e8f0;
+      min-height: 320px;
+    }
+
+    .log-box h3 {
+      margin-bottom: 12px;
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+    }
+
+    .log-list {
+      display: grid;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .log-entry.done { color: #86efac; }
+    .log-entry.error { color: #fca5a5; }
+    .log-entry.warning { color: #fde68a; }
+    .log-entry.started { color: #c4b5fd; }
+
+    .meta-box {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+    }
+
+    .meta-box strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .meta-box p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.52);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+
+    .overlay.show { display: flex; }
+
+    .modal {
+      width: 100%;
+      max-width: 560px;
+      background: #fff;
+      border-radius: 28px;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      padding: 24px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    }
+
+    .modal-head h3 {
+      font-size: 22px;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+
+    .modal-head p {
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 13px;
+    }
+
+    .modal-body {
+      padding: 22px 24px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .modal-body textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 18px 24px 24px;
+    }
+
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.42);
+      display: none;
+      z-index: 44;
+    }
+
+    .drawer-backdrop.show { display: block; }
+
     .drawer {
-      position:fixed; right:0; top:0; bottom:0; width:400px;
-      background:var(--color-bg-card); border-left:1px solid var(--color-border);
-      z-index:901; display:flex; flex-direction:column; box-shadow:-4px 0 20px rgba(0,0,0,.1);
-      animation:slideInRight .3s ease;
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(430px, 100vw);
+      height: 100vh;
+      background: #fff;
+      box-shadow: -18px 0 40px rgba(15, 23, 42, 0.14);
+      border-left: 1px solid var(--border);
+      display: none;
+      flex-direction: column;
+      z-index: 45;
     }
-    .drawer-hd { padding:16px 20px; border-bottom:1px solid var(--color-border); display:flex; align-items:flex-start; justify-content:space-between; }
-    .drawer-title { font-size:15px; font-weight:700; }
-    .drawer-sub2 { font-size:12px; color:var(--color-text-muted); margin-top:2px; }
-    .drawer-close { width:28px; height:28px; border-radius:var(--radius-full); background:var(--color-bg-chat); color:var(--color-text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
-    .drawer-msgs { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
-    .dm { max-width:85%; }
-    .dm.user { align-self:flex-end; }
-    .dm.bot  { align-self:flex-start; display:flex; gap:6px; }
-    .dm-avatar { width:26px; height:26px; border-radius:var(--radius-full); background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark)); color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .dm-wrap { display:flex; flex-direction:column; gap:3px; }
-    .dm-src { font-size:10px; color:var(--color-primary); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
-    .dm-bubble { padding:8px 13px; border-radius:12px; font-size:13px; line-height:1.55; }
-    .dm.user .dm-bubble { background:var(--color-primary); color:#fff; border-bottom-right-radius:4px; }
-    .dm.bot .dm-bubble  { background:var(--color-bg-chat); color:var(--color-text-primary); border-bottom-left-radius:4px; border:1px solid var(--color-border); }
 
-    /* LOADING */
-    .loading-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px; gap:12px; color:var(--color-text-muted); font-size:14px; }
-    .spinner { width:32px; height:32px; border:3px solid var(--color-border); border-top-color:var(--color-primary); border-radius:50%; animation:spin .8s linear infinite; }
-    .empty { padding:48px 24px; text-align:center; color:var(--color-text-muted); }
-    .empty-icon { font-size:40px; display:block; margin-bottom:10px; }
+    .drawer.show { display: flex; }
 
-    /* KEYFRAMES */
-    @keyframes fadeIn    { from { opacity:0; } to { opacity:1; } }
-    @keyframes slideUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes spin      { to { transform:rotate(360deg); } }
-    @keyframes slideInRight { from { transform:translateX(100%); } to { transform:translateX(0); } }
+    .drawer-head {
+      padding: 22px 22px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
 
-    @media (max-width:768px) {
-      .admin-nav { padding:0 16px; flex-wrap:wrap; height:auto; padding-top:10px; padding-bottom:10px; }
-      .nav-api { max-width:100%; order:3; flex-basis:100%; }
-      .nav-tabs { flex-shrink:0; }
-      .content { padding:20px 16px; }
-      .stat-grid { grid-template-columns:repeat(2,1fr); }
-      .drawer { width:100%; }
+    .drawer-head h3 {
+      font-size: 18px;
+      letter-spacing: -0.03em;
+      margin-bottom: 4px;
+    }
+
+    .drawer-head p {
+      color: var(--faint);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: var(--chat);
+      color: var(--muted);
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+      background: #f8fafc;
+      display: grid;
+      gap: 12px;
+    }
+
+    .msg {
+      max-width: 86%;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .msg.user {
+      justify-self: end;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 18px 18px 6px 18px;
+    }
+
+    .msg.bot-wrap {
+      justify-self: start;
+      display: grid;
+      gap: 6px;
+    }
+
+    .msg-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+      padding-left: 2px;
+    }
+
+    .msg.bot {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 18px 18px 18px 6px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .inline-code {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 1080px) {
+      .nav {
+        grid-template-columns: 1fr;
+      }
+
+      .tabs {
+        justify-content: flex-start;
+      }
+
+      .stats,
+      .crawl-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell { padding: 14px; }
+      .nav {
+        top: 12px;
+        padding: 16px;
+        border-radius: 22px;
+      }
+      .api-bar {
+        flex-wrap: wrap;
+        border-radius: 22px;
+      }
+      .api-bar span {
+        width: 100%;
+        padding-left: 4px;
+      }
+      .stats,
+      .crawl-grid {
+        grid-template-columns: 1fr;
+      }
+      .tab {
+        width: 100%;
+        text-align: left;
+      }
+      th, td {
+        padding: 12px;
+      }
+      .faq-top,
+      .toggle-row,
+      .section-head {
+        flex-direction: column;
+      }
+      .faq-actions,
+      .modal-foot {
+        width: 100%;
+      }
+      .modal-foot .btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand">
+        <div class="brand-mark">CB</div>
+        <div>
+          <h1>ChatBot Admin</h1>
+          <p>Analytics, crawl, FAQ management, and escalations</p>
+        </div>
+      </div>
 
-<!-- NAV -->
-<nav class="admin-nav">
-  <div class="nav-brand">
-    <div class="nav-logo">💬</div>
-    <div>
-      <div class="nav-title">ChatBot Admin</div>
-      <div class="nav-sub">Dashboard</div>
+      <div class="api-bar">
+        <span>API</span>
+        <input id="api-url-input" type="text" autocomplete="off" placeholder="Leave blank to use this backend">
+        <button class="btn btn-primary btn-small" type="button" onclick="connectApi()">Connect</button>
+        <div id="api-status" class="status bad">Not connected</div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-page="analytics" type="button" onclick="showPage('analytics')">Analytics</button>
+        <button class="tab" data-page="crawl" type="button" onclick="showPage('crawl')">Crawl</button>
+        <button class="tab" data-page="faqs" type="button" onclick="showPage('faqs')">FAQs</button>
+        <button class="tab" data-page="escalations" type="button" onclick="showPage('escalations')">Escalations</button>
+      </div>
+    </nav>
+
+    <main class="content">
+      <section class="page active" id="page-analytics">
+        <div class="section-head">
+          <div>
+            <h2>Analytics overview</h2>
+            <p>Live metrics pulled from the backend. Connect this page to the API once, then refresh any section when needed.</p>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="loadAnalytics()">Refresh analytics</button>
+        </div>
+
+        <div class="loading" id="analytics-loading">
+          <div class="spinner"></div>
+          <span>Waiting for API connection...</span>
+        </div>
+
+        <div class="stats" id="stats-grid" style="display:none;">
+          <div class="stat-card total">
+            <span>T</span>
+            <strong id="s-total">0</strong>
+            <p>Total queries</p>
+            <small id="s-total-sub">All chatbot requests</small>
+          </div>
+          <div class="stat-card faq">
+            <span>F</span>
+            <strong id="s-faq">0</strong>
+            <p>FAQ answered</p>
+            <small id="s-faq-pct">0% of total</small>
+          </div>
+          <div class="stat-card ai">
+            <span>AI</span>
+            <strong id="s-ai">0</strong>
+            <p>AI answered</p>
+            <small id="s-ai-pct">0% of total</small>
+          </div>
+          <div class="stat-card esc">
+            <span>H</span>
+            <strong id="s-esc">0</strong>
+            <p>Escalations</p>
+            <small id="s-esc-rate">0% escalation rate</small>
+          </div>
+        </div>
+
+        <div class="table-wrap" id="recent-escalations" style="display:none;">
+          <div class="table-head">
+            <h3>Recent escalations</h3>
+            <button class="btn btn-secondary btn-small" type="button" onclick="showPage('escalations')">View all</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="recent-escalations-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-crawl">
+        <div class="section-head">
+          <div>
+            <h2>Universal crawl</h2>
+            <p>Paste any website or PDF URL and this dashboard will stream crawl progress live while saving extracted content into the FAQ database.</p>
+          </div>
+        </div>
+
+        <div class="alert" id="crawl-alert"></div>
+
+        <div class="crawl-box">
+          <div class="crawl-toolbar">
+            <input class="grow" id="crawl-url" type="url" placeholder="https://example.com or https://example.com/catalog.pdf">
+            <button class="btn btn-primary" id="crawl-btn" type="button" onclick="startCrawl()">Start crawl</button>
+          </div>
+          <p>The crawler respects robots.txt, follows internal links, extracts visible content, and stores route-aware FAQ entries for the chatbot.</p>
+
+          <div class="crawl-grid">
+            <div class="meta-box">
+              <strong>What gets saved</strong>
+              <p>Route summaries, section-based answers, FAQ schema blocks, accordion content, product metadata, and PDF text chunks.</p>
+            </div>
+            <div class="meta-box">
+              <strong>Where it goes</strong>
+              <p>New crawl results are appended to the shared FAQ table so the widget can answer those questions immediately.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="log-box">
+          <h3>Live progress</h3>
+          <div class="log-list" id="crawl-logs">
+            <div class="log-entry">No crawl has been started yet.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-faqs">
+        <div class="section-head">
+          <div>
+            <h2>FAQ manager</h2>
+            <p>Upload files, search the knowledge base, or edit individual entries directly from the public admin page.</p>
+          </div>
+          <button class="btn btn-primary" type="button" onclick="openAddModal()">Add FAQ</button>
+        </div>
+
+        <div class="alert" id="faq-alert"></div>
+        <div class="alert" id="upload-alert"></div>
+
+        <label class="dropzone" id="upload-box">
+          <input id="faq-file" type="file" accept=".json,.csv,.pdf,application/json,text/csv,application/pdf">
+          <h3 id="upload-title">Upload JSON, CSV, or PDF</h3>
+          <p id="upload-hint">Drag a file here or click to choose one. JSON and CSV can append or replace. PDFs are parsed into FAQ pairs on the backend.</p>
+          <div class="hint-row">
+            <span class="hint">JSON</span>
+            <span class="hint">CSV</span>
+            <span class="hint">PDF</span>
+          </div>
+        </label>
+
+        <div class="toggle-row">
+          <label>
+            <input id="replace-mode" type="checkbox">
+            Replace all existing FAQs instead of appending
+          </label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="upload-btn" type="button" onclick="doUpload()" disabled>Upload selected file</button>
+            <button class="btn btn-secondary" type="button" onclick="downloadSampleCsv()">Sample CSV</button>
+          </div>
+        </div>
+
+        <div class="faq-toolbar">
+          <input class="grow" id="faq-search" type="text" placeholder="Search questions, answers, and keywords..." oninput="filterFAQs()">
+          <span class="table-count" id="faq-count">0 FAQs</span>
+          <button class="btn btn-secondary btn-small" type="button" onclick="loadFAQs()">Refresh FAQs</button>
+        </div>
+
+        <div class="loading" id="faq-loading" style="display:none;">
+          <div class="spinner"></div>
+          <span>Loading FAQs...</span>
+        </div>
+
+        <div class="faq-list" id="faq-list">
+          <div class="empty">Connect the API to load your FAQ knowledge base.</div>
+        </div>
+      </section>
+
+      <section class="page" id="page-escalations">
+        <div class="section-head">
+          <div>
+            <h2>Escalation tickets</h2>
+            <p>Review human handoff requests along with the related conversation history.</p>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="loadEscalations()">Refresh escalations</button>
+        </div>
+
+        <div class="alert" id="escalation-alert"></div>
+        <div class="loading" id="escalation-loading" style="display:none;">
+          <div class="spinner"></div>
+          <span>Loading escalations...</span>
+        </div>
+
+        <div class="table-wrap">
+          <div class="table-head">
+            <h3>All escalation requests</h3>
+            <span class="table-count" id="escalation-count">0 tickets</span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Issue</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="escalation-body">
+                <tr>
+                  <td colspan="6" class="empty">Connect the API to load escalation tickets.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay" id="faq-overlay">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modal-title">Add FAQ</h3>
+        <p>Edit the chatbot knowledge base without leaving the public admin page.</p>
+      </div>
+      <div class="modal-body">
+        <input id="faq-id" type="hidden">
+        <div class="field">
+          <label for="faq-question">Question</label>
+          <input id="faq-question" type="text" placeholder="What are your business hours?">
+        </div>
+        <div class="field">
+          <label for="faq-answer">Answer</label>
+          <textarea id="faq-answer" placeholder="We are open Monday to Friday from 9 AM to 6 PM."></textarea>
+        </div>
+        <div class="field">
+          <label for="faq-keywords">Keywords</label>
+          <input id="faq-keywords" type="text" placeholder="hours, timing, open">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" type="button" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-faq-btn" type="button" onclick="saveFAQ()">Save FAQ</button>
+      </div>
     </div>
   </div>
 
-  <div class="nav-api">
-    <span style="font-size:11px;color:var(--color-text-muted);white-space:nowrap">🔗 API:</span>
-    <input type="text" id="api-url-input" placeholder="https://your-backend.com" autocomplete="off">
-    <button class="btn-connect" onclick="connectApi()">Connect</button>
-  </div>
-
-  <span id="api-status" class="s-err">● Not connected</span>
-
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('analytics',this)">📊 Analytics</button>
-    <button class="nav-tab" onclick="showPage('faqs',this)">📚 FAQs</button>
-    <button class="nav-tab" onclick="showPage('escalations',this)">🎫 Escalations</button>
-  </div>
-</nav>
-
-<div class="content">
-
-  <!-- ── ANALYTICS ── -->
-  <div class="page active" id="page-analytics">
-    <div class="sec-hd">
+  <div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawer()"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
       <div>
-        <h1 class="sec-title">Analytics Overview</h1>
-        <p class="sec-sub">Real-time metrics from your chatbot deployment</p>
+        <h3 id="drawer-title">Conversation</h3>
+        <p id="drawer-subtitle"></p>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="loadAnalytics()">🔄 Refresh</button>
+      <button class="icon-btn" type="button" onclick="closeDrawer()">X</button>
     </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
 
-    <div id="analytics-loading" class="loading-wrap">
-      <div class="spinner"></div>
-      <span>Connect your backend API above to load analytics</span>
-    </div>
+  <script>
+    var API = "";
+    var allFaqs = [];
+    var allEscalations = [];
+    var selectedFile = null;
+    var editId = null;
+    var currentPage = "analytics";
+    var crawlRunning = false;
 
-    <div class="stat-grid" id="stat-grid" style="display:none">
-      <div class="stat-card">
-        <div class="stat-icon i-purple">💬</div>
-        <div class="stat-val" id="s-total">—</div>
-        <div class="stat-label">Total Queries</div>
-        <div class="stat-pct" id="s-total-sub"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon i-green">📚</div>
-        <div class="stat-val" id="s-faq">—</div>
-        <div class="stat-label">FAQ Answered</div>
-        <div class="stat-pct" id="s-faq-pct"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon i-blue">✨</div>
-        <div class="stat-val" id="s-ai">—</div>
-        <div class="stat-label">AI Answered</div>
-        <div class="stat-pct" id="s-ai-pct"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon i-amber">🎫</div>
-        <div class="stat-val" id="s-esc">—</div>
-        <div class="stat-label">Escalations</div>
-        <div class="stat-pct" id="s-esc-rate"></div>
-      </div>
-    </div>
-
-    <div class="tbl-wrap" id="recent-esc-wrap" style="display:none">
-      <div class="tbl-hd">
-        <span class="tbl-title">Recent Escalations</span>
-        <button class="btn btn-secondary btn-sm" onclick="showPage('escalations',null)">View All →</button>
-      </div>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody id="recent-esc-body"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── FAQs ── -->
-  <div class="page" id="page-faqs">
-    <div class="sec-hd">
-      <div>
-        <h1 class="sec-title">FAQ Knowledge Base</h1>
-        <p class="sec-sub">Upload, edit, and manage your chatbot's FAQ answers</p>
-      </div>
-      <button class="btn btn-primary" onclick="openAddModal()">＋ Add FAQ</button>
-    </div>
-
-    <!-- Upload -->
-    <div style="margin-bottom:32px">
-      <div class="upload-box" id="upload-box">
-        <input type="file" id="faq-file" accept=".json,.csv,.pdf" onchange="onFileSelect(this)">
-        <span class="upload-icon">📤</span>
-        <div class="upload-title" id="upload-title">Drag & drop or click to upload FAQs</div>
-        <div class="upload-hint" id="upload-hint">Supports JSON, CSV, and PDF formats</div>
-        <div class="upload-fmts"><span class="fmt">JSON</span><span class="fmt">CSV</span><span class="fmt">PDF</span></div>
-      </div>
-      <div class="upload-opts">
-        <label><input type="checkbox" id="replace-mode"> Replace all existing FAQs (default: append)</label>
-        <button class="btn btn-primary" id="upload-btn" disabled onclick="doUpload()">📤 Upload FAQs</button>
-        <button class="btn btn-secondary btn-sm" onclick="dlSampleCSV()">⬇️ Sample CSV</button>
-      </div>
-      <div id="upload-alert" style="display:none"></div>
-    </div>
-
-    <!-- FAQ list -->
-    <div class="faq-bar">
-      <input type="text" class="search" id="faq-search" placeholder="🔍 Search questions, answers, keywords…" oninput="filterFAQs()">
-      <span id="faq-count" style="font-size:12px;color:var(--color-text-muted);white-space:nowrap"></span>
-      <button class="btn btn-secondary btn-sm" onclick="loadFAQs()">🔄 Refresh</button>
-    </div>
-    <div id="faq-loading" class="loading-wrap" style="display:none"><div class="spinner"></div><span>Loading FAQs…</span></div>
-    <div id="faq-alert" style="display:none"></div>
-    <div class="faq-list" id="faq-list">
-      <div class="empty"><span class="empty-icon">🔗</span><p>Connect your backend API to manage FAQs</p></div>
-    </div>
-  </div>
-
-  <!-- ── ESCALATIONS ── -->
-  <div class="page" id="page-escalations">
-    <div class="sec-hd">
-      <div>
-        <h1 class="sec-title">Escalation Tickets</h1>
-        <p class="sec-sub">Human escalation requests from your chat users</p>
-      </div>
-      <button class="btn btn-secondary btn-sm" onclick="loadEscalations()">🔄 Refresh</button>
-    </div>
-    <div id="esc-loading" class="loading-wrap" style="display:none"><div class="spinner"></div><span>Loading…</span></div>
-    <div id="esc-alert" style="display:none"></div>
-    <div class="tbl-wrap">
-      <div class="tbl-hd">
-        <span class="tbl-title">All Escalation Requests</span>
-        <span class="tbl-count" id="esc-count">0 tickets</span>
-      </div>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Issue Preview</th><th>Status</th><th>Date</th><th></th></tr></thead>
-          <tbody id="esc-body">
-            <tr><td colspan="6"><div class="empty"><span class="empty-icon">🔗</span><p>Connect your backend API to view escalations</p></div></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /content -->
-
-<!-- FAQ MODAL -->
-<div class="overlay hidden" id="faq-overlay">
-  <div class="modal">
-    <div class="modal-hd">
-      <div class="modal-title" id="modal-title">Add FAQ</div>
-      <div class="modal-sub">Manage your chatbot's knowledge base</div>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="m-id">
-      <div class="fg"><label class="fl">Question *</label><input type="text" class="fi" id="m-q" placeholder="What are your business hours?"></div>
-      <div class="fg"><label class="fl">Answer *</label><textarea class="ft" id="m-a" placeholder="We are open Monday to Friday…"></textarea></div>
-      <div class="fg"><label class="fl">Keywords <span style="font-weight:400;text-transform:none">(comma-separated)</span></label><input type="text" class="fi" id="m-kw" placeholder="hours, open, timing, schedule"></div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" id="m-save" onclick="saveFAQ()">Save FAQ</button>
-    </div>
-  </div>
-</div>
-
-<!-- CONVERSATION DRAWER -->
-<div class="drawer-overlay hidden" id="d-overlay" onclick="closeDrawer()"></div>
-<div class="drawer" id="drawer" style="display:none">
-  <div class="drawer-hd">
-    <div>
-      <div class="drawer-title" id="d-title">Conversation</div>
-      <div class="drawer-sub2" id="d-sub"></div>
-    </div>
-    <button class="drawer-close" onclick="closeDrawer()">✕</button>
-  </div>
-  <div class="drawer-msgs" id="d-msgs"></div>
-</div>
-
-<script>
-// ── STATE ──
-var API = localStorage.getItem('cb_admin_api') || '';
-var allFaqs = [], allEscs = [], editId = null, selFile = null;
-
-// ── INIT ──
-document.addEventListener('DOMContentLoaded', function () {
-  if (API) { document.getElementById('api-url-input').value = API; connectApi(); }
-  var box = document.getElementById('upload-box');
-  box.addEventListener('dragover', function(e){ e.preventDefault(); box.classList.add('over'); });
-  box.addEventListener('dragleave', function(){ box.classList.remove('over'); });
-  box.addEventListener('drop', function(e){ e.preventDefault(); box.classList.remove('over'); if(e.dataTransfer.files[0]) onFileSelect({files:e.dataTransfer.files}); });
-});
-
-// ── API ──
-function req(path, opts) {
-  opts = opts || {};
-  return fetch(API + path, {
-    headers: Object.assign({'Content-Type':'application/json'}, opts.headers||{}),
-    method: opts.method || 'GET', body: opts.body,
-  }).then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.error||'HTTP '+r.status); return d; }); });
-}
-function reqFile(path, fd) {
-  return fetch(API + path, {method:'POST', body:fd})
-    .then(function(r){ return r.json().then(function(d){ if(!r.ok) throw new Error(d.error||'HTTP '+r.status); return d; }); });
-}
-
-// ── CONNECT ──
-function connectApi() {
-  var url = document.getElementById('api-url-input').value.trim().replace(/\/$/,'');
-  if (!url) { setStatus(false); return; }
-  API = url; localStorage.setItem('cb_admin_api', url);
-  fetch(url + '/health').then(function(r){ return r.json(); })
-    .then(function(){ setStatus(true); loadAnalytics(); })
-    .catch(function(){
-      req('/api/admin/analytics').then(function(){ setStatus(true); loadAnalytics(); }).catch(function(){ setStatus(false); });
-    });
-}
-function setStatus(ok) {
-  var el = document.getElementById('api-status');
-  el.textContent = ok ? '● Connected' : '● Not connected';
-  el.className = ok ? 's-ok' : 's-err';
-}
-
-// ── NAV ──
-function showPage(name, btn) {
-  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-  document.getElementById('page-'+name).classList.add('active');
-  document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
-  if (name==='analytics') loadAnalytics();
-  if (name==='faqs') loadFAQs();
-  if (name==='escalations') loadEscalations();
-}
-
-// ── ANALYTICS — GET /api/admin/analytics ──
-function loadAnalytics() {
-  if (!API) return;
-  show('analytics-loading'); hide('stat-grid'); hide('recent-esc-wrap');
-  req('/api/admin/analytics').then(function(d) {
-    hide('analytics-loading'); show('stat-grid','grid');
-    setText('s-total', fmtN(d.totalQueries));
-    setText('s-faq', fmtN(d.faqAnswered));
-    setText('s-faq-pct', (d.faqAnsweredPercent||0)+'% of total');
-    setText('s-ai', fmtN(d.aiAnswered));
-    setText('s-ai-pct', (d.aiAnsweredPercent||0)+'% of total');
-    setText('s-esc', fmtN(d.escalations));
-    setText('s-esc-rate', (d.escalationRate||0)+'% escalation rate');
-    var list = Array.isArray(d.escalationsList) ? d.escalationsList : [];
-    if (list.length > 0) {
-      show('recent-esc-wrap');
-      document.getElementById('recent-esc-body').innerHTML = list.slice(0,5).map(function(e){
-        return '<tr><td style="font-weight:600">'+esc(e.name)+'</td>'+
-          '<td style="font-family:var(--font-mono);font-size:12px">'+esc(e.email)+'</td>'+
-          '<td><span class="badge '+bClass(e.status)+'">'+esc(e.status)+'</span></td>'+
-          '<td style="font-size:12px;color:var(--color-text-muted)">'+fmtD(e.createdAt)+'</td></tr>';
-      }).join('');
+    function defaultApiBase() {
+      return window.location.origin.replace(/\/$/, "");
     }
-  }).catch(function(err){ hide('analytics-loading'); document.getElementById('analytics-loading').innerHTML='<div class="alert a-err">⚠️ '+esc(err.message)+'</div>'; show('analytics-loading'); });
-}
 
-// ── FAQs — GET /api/admin/faqs + PUT + DELETE ──
-function loadFAQs() {
-  if (!API) return;
-  show('faq-loading'); hide('faq-alert');
-  document.getElementById('faq-list').innerHTML='';
-  req('/api/admin/faqs').then(function(d){
-    hide('faq-loading'); allFaqs = Array.isArray(d.faqs)?d.faqs:[];
-    renderFAQs(allFaqs);
-  }).catch(function(err){ hide('faq-loading'); showAlert('faq-alert','err','⚠️ '+err.message); });
-}
+    function normalizeApiBase(value) {
+      return String(value || "").trim().replace(/\/$/, "");
+    }
 
-function renderFAQs(faqs) {
-  var list = document.getElementById('faq-list');
-  setText('faq-count', faqs.length+' FAQs');
-  if (!faqs.length) { list.innerHTML='<div class="empty"><span class="empty-icon">📭</span><p>No FAQs found. Upload some to get started!</p></div>'; return; }
-  list.innerHTML = faqs.map(function(f){
-    var kws = Array.isArray(f.keywords)?f.keywords:[];
-    var fData = JSON.stringify(f).replace(/"/g,'&quot;');
-    return '<div class="faq-card">'+
-      '<div class="faq-top">'+
-        '<div style="flex:1"><div class="faq-q">'+esc(f.question)+'</div><div class="faq-id">ID: '+f.id+'</div></div>'+
-        '<div class="faq-acts">'+
-          '<button class="btn btn-secondary btn-sm" onclick=\'openEditModal('+fData+')\'>✏️ Edit</button>'+
-          '<button class="btn btn-danger btn-sm" onclick="delFAQ('+f.id+')">🗑️</button>'+
-        '</div>'+
-      '</div>'+
-      '<div class="faq-a">'+esc(f.answer)+'</div>'+
-      (kws.length?'<div class="kw-wrap">'+kws.map(function(k){return '<span class="kw">'+esc(k)+'</span>';}).join('')+'</div>':'')+
-    '</div>';
-  }).join('');
-}
+    function getApiBaseFromInput() {
+      var raw = document.getElementById("api-url-input").value.trim();
+      return normalizeApiBase(raw || defaultApiBase());
+    }
 
-function filterFAQs() {
-  var q = document.getElementById('faq-search').value.toLowerCase();
-  renderFAQs(q ? allFaqs.filter(function(f){
-    return (f.question||'').toLowerCase().includes(q)||(f.answer||'').toLowerCase().includes(q)||
-      (Array.isArray(f.keywords)&&f.keywords.some(function(k){return k.toLowerCase().includes(q);}));
-  }) : allFaqs);
-}
+    function apiUrl(path) {
+      return API + path;
+    }
 
-function openAddModal() {
-  editId=null; setText('modal-title','Add FAQ');
-  setVal('m-id',''); setVal('m-q',''); setVal('m-a',''); setVal('m-kw','');
-  document.getElementById('faq-overlay').classList.remove('hidden');
-}
-function openEditModal(f) {
-  editId=f.id; setText('modal-title','Edit FAQ');
-  setVal('m-id',f.id); setVal('m-q',f.question||''); setVal('m-a',f.answer||'');
-  setVal('m-kw',Array.isArray(f.keywords)?f.keywords.join(', '):'');
-  document.getElementById('faq-overlay').classList.remove('hidden');
-}
-function closeModal() { document.getElementById('faq-overlay').classList.add('hidden'); editId=null; }
+    function setStatus(ok, message) {
+      var el = document.getElementById("api-status");
+      el.textContent = message || (ok ? "Connected" : "Not connected");
+      el.className = "status " + (ok ? "ok" : "bad");
+    }
 
-function saveFAQ() {
-  var q=getVal('m-q').trim(), a=getVal('m-a').trim();
-  var kw=getVal('m-kw').trim().split(',').map(function(k){return k.trim();}).filter(Boolean);
-  if (!q||!a) { alert('Question and Answer are required.'); return; }
-  var btn=document.getElementById('m-save'); btn.disabled=true; btn.textContent='Saving…';
-  var p = editId
-    ? req('/api/admin/faqs/'+editId,{method:'PUT',body:JSON.stringify({question:q,answer:a,keywords:kw})})
-    : req('/api/admin/faqs/upload',{method:'POST',body:JSON.stringify([{question:q,answer:a,keywords:kw}])});
-  p.then(function(){ closeModal(); showAlert('faq-alert','ok','✅ FAQ '+(editId?'updated':'added')+' successfully.'); loadFAQs(); })
-   .catch(function(e){ showAlert('faq-alert','err','⚠️ '+e.message); })
-   .finally(function(){ btn.disabled=false; btn.textContent='Save FAQ'; });
-}
+    function showAlert(id, type, message) {
+      var el = document.getElementById(id);
+      el.className = "alert " + type;
+      el.textContent = message;
+    }
 
-function delFAQ(id) {
-  if (!confirm('Delete this FAQ? This cannot be undone.')) return;
-  req('/api/admin/faqs/'+id,{method:'DELETE'})
-    .then(function(){ showAlert('faq-alert','ok','✅ FAQ deleted.'); loadFAQs(); })
-    .catch(function(e){ showAlert('faq-alert','err','⚠️ '+e.message); });
-}
+    function clearAlert(id) {
+      var el = document.getElementById(id);
+      el.className = "alert";
+      el.textContent = "";
+    }
 
-// ── FILE UPLOAD — POST /api/admin/faqs/upload (multipart) ──
-function onFileSelect(inp) {
-  var f=inp.files&&inp.files[0]; if(!f) return;
-  selFile=f;
-  document.getElementById('upload-btn').disabled=false;
-  setText('upload-title','📄 '+f.name);
-  setText('upload-hint',(f.size/1024).toFixed(1)+' KB · Click Upload FAQs to proceed');
-  hide('upload-alert');
-}
-function doUpload() {
-  if (!selFile) return;
-  if (!API) { showAlert('upload-alert','err','⚠️ Connect your backend API first.'); return; }
-  var replace=document.getElementById('replace-mode').checked;
-  var btn=document.getElementById('upload-btn'); btn.disabled=true; btn.textContent='⏳ Uploading…';
-  hide('upload-alert');
-  var fd=new FormData(); fd.append('file',selFile);
-  reqFile('/api/admin/faqs/upload'+(replace?'?replace=true':''),fd)
-    .then(function(d){
-      var msg=d.mode==='replace'?'✅ Replaced all FAQs with '+d.total+' entries.':'✅ Appended '+d.added+' FAQs. Total: '+d.total;
-      showAlert('upload-alert','ok',msg);
-      selFile=null; document.getElementById('faq-file').value='';
-      setText('upload-title','Drag & drop or click to upload FAQs');
-      setText('upload-hint','Supports JSON, CSV, and PDF formats');
-      loadFAQs();
-    })
-    .catch(function(e){ showAlert('upload-alert','err','⚠️ '+e.message); })
-    .finally(function(){ btn.disabled=false; btn.textContent='📤 Upload FAQs'; });
-}
-function dlSampleCSV() {
-  var csv='question,answer,keywords\n"What are your business hours?","We are open Monday–Friday, 9AM–6PM EST.","hours,open,timing"\n"What is your refund policy?","We offer a 30-day money-back guarantee.","refund,cancel,money back"\n"How do I reset my password?","Go to the login page and click Forgot Password.","password,reset,forgot"';
-  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='sample-faqs.csv'; a.click();
-}
+    function show(id, display) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = display || "block";
+    }
 
-// ── ESCALATIONS — GET /api/escalate ──
-function loadEscalations() {
-  if (!API) return;
-  show('esc-loading'); hide('esc-alert'); document.getElementById('esc-body').innerHTML='';
-  req('/api/escalate').then(function(d){
-    hide('esc-loading'); allEscs=Array.isArray(d.escalations)?d.escalations:[];
-    renderEscs(allEscs);
-  }).catch(function(e){ hide('esc-loading'); showAlert('esc-alert','err','⚠️ '+e.message); });
-}
-function renderEscs(list) {
-  setText('esc-count', list.length+' ticket'+(list.length!==1?'s':''));
-  var body=document.getElementById('esc-body');
-  if (!list.length) { body.innerHTML='<tr><td colspan="6"><div class="empty"><span class="empty-icon">🎉</span><p>No escalations yet!</p></div></td></tr>'; return; }
-  body.innerHTML=list.map(function(e){
-    var hist=Array.isArray(e.conversationHistory)?e.conversationHistory:[];
-    var last=hist.length?hist[hist.length-1].content:e.issue;
-    var eData=JSON.stringify(e).replace(/"/g,'&quot;');
-    return '<tr>'+
-      '<td style="font-weight:600">'+esc(e.name)+'</td>'+
-      '<td style="font-family:var(--font-mono);font-size:12px">'+esc(e.email)+'</td>'+
-      '<td><div class="preview">'+esc(last||e.issue||'—')+'</div></td>'+
-      '<td><span class="badge '+bClass(e.status)+'">'+esc(e.status)+'</span></td>'+
-      '<td style="font-size:12px;color:var(--color-text-muted);white-space:nowrap">'+fmtD(e.createdAt)+'</td>'+
-      '<td><button class="btn btn-secondary btn-sm" onclick=\'openDrawer('+eData+')\'>💬 View</button></td>'+
-    '</tr>';
-  }).join('');
-}
+    function hide(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    }
 
-// ── DRAWER ──
-function openDrawer(e) {
-  var hist=Array.isArray(e.conversationHistory)?e.conversationHistory:[];
-  setText('d-title',e.name+' — Conversation');
-  setText('d-sub',e.email+' · '+fmtD(e.createdAt));
-  var msgs=document.getElementById('d-msgs');
-  msgs.innerHTML=!hist.length
-    ? '<div class="empty"><span class="empty-icon">💬</span><p>No messages. Issue: '+esc(e.issue)+'</p></div>'
-    : hist.map(function(m){
-        var isU=m.role==='user';
-        if(isU) return '<div class="dm user"><div class="dm-wrap"><div class="dm-bubble">'+esc(m.content)+'</div></div></div>';
-        var src=m.source?'<div class="dm-src">'+(m.source==='faq'?'📚 FAQ':'✨ AI')+'</div>':'';
-        return '<div class="dm bot"><div class="dm-avatar">🤖</div><div class="dm-wrap">'+src+'<div class="dm-bubble">'+esc(m.content)+'</div></div></div>';
-      }).join('');
-  document.getElementById('drawer').style.display='flex';
-  document.getElementById('drawer').style.flexDirection='column';
-  document.getElementById('d-overlay').classList.remove('hidden');
-  msgs.scrollTop=msgs.scrollHeight;
-}
-function closeDrawer() {
-  document.getElementById('drawer').style.display='none';
-  document.getElementById('d-overlay').classList.add('hidden');
-}
+    function esc(value) {
+      var div = document.createElement("div");
+      div.textContent = value == null ? "" : String(value);
+      return div.innerHTML;
+    }
 
-// ── EVENT LISTENERS ──
-document.getElementById('faq-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal();closeDrawer();}});
+    function fmtNumber(value) {
+      return Number(value || 0).toLocaleString();
+    }
 
-// ── UTILS ──
-function esc(s){ var d=document.createElement('div');d.textContent=s||'';return d.innerHTML; }
-function fmtN(n){ return (n||0).toLocaleString(); }
-function fmtD(iso){ if(!iso)return'—'; try{return new Date(iso).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return iso;} }
-function bClass(s){ s=(s||'').toLowerCase(); if(s==='resolved')return'b-resolved'; if(s.includes('progress')||s==='open')return'b-progress'; return'b-pending'; }
-function show(id,d){ var e=document.getElementById(id);if(e)e.style.display=d||'block'; }
-function hide(id){ var e=document.getElementById(id);if(e)e.style.display='none'; }
-function setText(id,t){ var e=document.getElementById(id);if(e)e.textContent=t; }
-function getVal(id){ return document.getElementById(id).value; }
-function setVal(id,v){ document.getElementById(id).value=v; }
-function showAlert(id,type,msg){
-  var el=document.getElementById(id);
-  if(!el)return;
-  el.innerHTML='<div class="alert a-'+type+'">'+esc(msg)+'</div>';
-  el.style.display='block';
-  if(type==='ok')setTimeout(function(){el.style.display='none';},5000);
-}
-</script>
+    function fmtDateTime(value) {
+      if (!value) return "-";
+      try {
+        return new Date(value).toLocaleString([], {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      } catch (err) {
+        return value;
+      }
+    }
+
+    function badgeClass(status) {
+      var value = String(status || "").toLowerCase();
+      if (value === "resolved") return "resolved";
+      if (value === "open" || value.indexOf("progress") !== -1) return "progress";
+      return "pending";
+    }
+
+    function req(path, options) {
+      options = options || {};
+      var headers = options.headers || {};
+      var body = options.body;
+      var init = {
+        method: options.method || "GET",
+        headers: headers
+      };
+
+      if (body !== undefined) {
+        init.body = body;
+      }
+
+      if (!(body instanceof FormData) && !headers["Content-Type"]) {
+        init.headers["Content-Type"] = "application/json";
+      }
+
+      return fetch(apiUrl(path), init).then(function (res) {
+        return res.json().catch(function () {
+          return {};
+        }).then(function (data) {
+          if (!res.ok) {
+            throw new Error(data.error || ("HTTP " + res.status));
+          }
+          return data;
+        });
+      });
+    }
+
+    function connectApi() {
+      var inputValue = document.getElementById("api-url-input").value.trim();
+      var resolvedBase = normalizeApiBase(inputValue || defaultApiBase());
+
+      API = resolvedBase;
+      document.getElementById("api-url-input").value = inputValue || resolvedBase;
+      localStorage.setItem("cb_admin_api", resolvedBase);
+      setStatus(false, "Connecting...");
+
+      fetch(API + "/health").then(function (res) {
+        if (!res.ok) throw new Error("Health check failed.");
+        return res.json();
+      }).then(function () {
+        setStatus(true, "Connected");
+        loadCurrentPage();
+      }).catch(function (err) {
+        setStatus(false, "Connection failed");
+        if (currentPage === "analytics") {
+          var loadingEl = document.getElementById("analytics-loading");
+          loadingEl.className = "loading";
+          loadingEl.innerHTML = "<div class='alert err' style='display:block;'>" + esc(err.message || "Could not connect to API.") + "</div>";
+          show("analytics-loading", "flex");
+        }
+      });
+    }
+
+    function showPage(name) {
+      currentPage = name;
+      Array.prototype.forEach.call(document.querySelectorAll(".page"), function (page) {
+        page.classList.toggle("active", page.id === "page-" + name);
+      });
+      Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (tab) {
+        tab.classList.toggle("active", tab.getAttribute("data-page") === name);
+      });
+      loadCurrentPage();
+    }
+
+    function loadCurrentPage() {
+      if (!API) return;
+      if (currentPage === "analytics") loadAnalytics();
+      if (currentPage === "crawl") resetCrawlView();
+      if (currentPage === "faqs") loadFAQs();
+      if (currentPage === "escalations") loadEscalations();
+    }
+
+    function loadAnalytics() {
+      if (!API) return;
+      var loadingEl = document.getElementById("analytics-loading");
+      loadingEl.className = "loading";
+      loadingEl.innerHTML = "<div class='spinner'></div><span>Loading analytics...</span>";
+      show("analytics-loading", "flex");
+      hide("stats-grid");
+      hide("recent-escalations");
+
+      req("/api/admin/analytics").then(function (data) {
+        hide("analytics-loading");
+        show("stats-grid", "grid");
+        document.getElementById("s-total").textContent = fmtNumber(data.totalQueries);
+        document.getElementById("s-total-sub").textContent = "All chatbot requests";
+        document.getElementById("s-faq").textContent = fmtNumber(data.faqAnswered);
+        document.getElementById("s-faq-pct").textContent = (data.faqAnsweredPercent || 0) + "% of total";
+        document.getElementById("s-ai").textContent = fmtNumber(data.aiAnswered);
+        document.getElementById("s-ai-pct").textContent = (data.aiAnsweredPercent || 0) + "% of total";
+        document.getElementById("s-esc").textContent = fmtNumber(data.escalations);
+        document.getElementById("s-esc-rate").textContent = (data.escalationRate || 0) + "% escalation rate";
+
+        var list = Array.isArray(data.escalationsList) ? data.escalationsList.slice(0, 5) : [];
+        if (!list.length) return;
+
+        show("recent-escalations");
+        document.getElementById("recent-escalations-body").innerHTML = list.map(function (item) {
+          return [
+            "<tr>",
+              "<td><strong>" + esc(item.name || "Unknown") + "</strong></td>",
+              "<td class='inline-code'>" + esc(item.email || "-") + "</td>",
+              "<td><span class='badge " + badgeClass(item.status) + "'>" + esc(item.status || "pending") + "</span></td>",
+              "<td>" + esc(fmtDateTime(item.createdAt)) + "</td>",
+            "</tr>"
+          ].join("");
+        }).join("");
+      }).catch(function (err) {
+        document.getElementById("analytics-loading").innerHTML = "<div class='alert err' style='display:block;'>" + esc(err.message) + "</div>";
+      });
+    }
+
+    function loadFAQs() {
+      if (!API) return;
+      clearAlert("faq-alert");
+      show("faq-loading", "flex");
+      document.getElementById("faq-list").innerHTML = "";
+
+      req("/api/admin/faqs").then(function (data) {
+        allFaqs = Array.isArray(data.faqs) ? data.faqs : [];
+        hide("faq-loading");
+        renderFAQs(allFaqs);
+      }).catch(function (err) {
+        hide("faq-loading");
+        showAlert("faq-alert", "err", err.message);
+      });
+    }
+
+    function renderFAQs(list) {
+      document.getElementById("faq-count").textContent = list.length + " FAQs";
+      if (!list.length) {
+        document.getElementById("faq-list").innerHTML = "<div class='empty'>No FAQs found yet. Upload a file, crawl a site, or add one manually.</div>";
+        return;
+      }
+
+      document.getElementById("faq-list").innerHTML = list.map(function (faq) {
+        var keywords = Array.isArray(faq.keywords) ? faq.keywords : [];
+        return [
+          "<article class='faq-card'>",
+            "<div class='faq-top'>",
+              "<div style='flex:1;'>",
+                "<div class='faq-question'>" + esc(faq.question) + "</div>",
+                "<div class='faq-id'>ID: " + esc(faq.id) + "</div>",
+              "</div>",
+              "<div class='faq-actions'>",
+                "<button class='btn btn-secondary btn-small' type='button' onclick='openEditModal(" + JSON.stringify(JSON.stringify(faq)).replace(/"/g, "&quot;") + ")'>Edit</button>",
+                "<button class='btn btn-danger btn-small' type='button' onclick='deleteFAQ(" + Number(faq.id) + ")'>Delete</button>",
+              "</div>",
+            "</div>",
+            "<div class='faq-answer'>" + esc(faq.answer) + "</div>",
+            keywords.length ? "<div class='chips'>" + keywords.map(function (keyword) {
+              return "<span class='chip'>" + esc(keyword) + "</span>";
+            }).join("") + "</div>" : "",
+          "</article>"
+        ].join("");
+      }).join("");
+    }
+
+    function filterFAQs() {
+      var query = document.getElementById("faq-search").value.toLowerCase().trim();
+      if (!query) {
+        renderFAQs(allFaqs);
+        return;
+      }
+
+      renderFAQs(allFaqs.filter(function (faq) {
+        var keywords = Array.isArray(faq.keywords) ? faq.keywords : [];
+        return String(faq.question || "").toLowerCase().indexOf(query) !== -1 ||
+          String(faq.answer || "").toLowerCase().indexOf(query) !== -1 ||
+          keywords.some(function (keyword) {
+            return String(keyword || "").toLowerCase().indexOf(query) !== -1;
+          });
+      }));
+    }
+
+    function openAddModal() {
+      editId = null;
+      document.getElementById("modal-title").textContent = "Add FAQ";
+      document.getElementById("faq-question").value = "";
+      document.getElementById("faq-answer").value = "";
+      document.getElementById("faq-keywords").value = "";
+      document.getElementById("faq-overlay").classList.add("show");
+    }
+
+    function openEditModal(payload) {
+      var faq = JSON.parse(payload);
+      editId = faq.id;
+      document.getElementById("modal-title").textContent = "Edit FAQ";
+      document.getElementById("faq-question").value = faq.question || "";
+      document.getElementById("faq-answer").value = faq.answer || "";
+      document.getElementById("faq-keywords").value = Array.isArray(faq.keywords) ? faq.keywords.join(", ") : "";
+      document.getElementById("faq-overlay").classList.add("show");
+    }
+
+    function closeModal() {
+      document.getElementById("faq-overlay").classList.remove("show");
+      editId = null;
+    }
+
+    function saveFAQ() {
+      var question = document.getElementById("faq-question").value.trim();
+      var answer = document.getElementById("faq-answer").value.trim();
+      var keywords = document.getElementById("faq-keywords").value.split(",").map(function (part) {
+        return part.trim();
+      }).filter(Boolean);
+
+      if (!question || !answer) {
+        showAlert("faq-alert", "err", "Question and answer are required.");
+        return;
+      }
+
+      var button = document.getElementById("save-faq-btn");
+      button.disabled = true;
+      button.textContent = "Saving...";
+
+      var promise = editId
+        ? req("/api/admin/faqs/" + editId, {
+            method: "PUT",
+            body: JSON.stringify({ question: question, answer: answer, keywords: keywords })
+          })
+        : req("/api/admin/faqs/upload", {
+            method: "POST",
+            body: JSON.stringify([{ question: question, answer: answer, keywords: keywords }])
+          });
+
+      promise.then(function () {
+        closeModal();
+        showAlert("faq-alert", "ok", editId ? "FAQ updated." : "FAQ added.");
+        loadFAQs();
+      }).catch(function (err) {
+        showAlert("faq-alert", "err", err.message);
+      }).finally(function () {
+        button.disabled = false;
+        button.textContent = "Save FAQ";
+      });
+    }
+
+    function deleteFAQ(id) {
+      if (!window.confirm("Delete this FAQ?")) return;
+      req("/api/admin/faqs/" + id, { method: "DELETE" }).then(function () {
+        showAlert("faq-alert", "ok", "FAQ deleted.");
+        loadFAQs();
+      }).catch(function (err) {
+        showAlert("faq-alert", "err", err.message);
+      });
+    }
+
+    function updateSelectedFile(file) {
+      selectedFile = file || null;
+      document.getElementById("upload-btn").disabled = !selectedFile;
+      if (!selectedFile) {
+        document.getElementById("upload-title").textContent = "Upload JSON, CSV, or PDF";
+        document.getElementById("upload-hint").textContent = "Drag a file here or click to choose one. JSON and CSV can append or replace. PDFs are parsed into FAQ pairs on the backend.";
+        return;
+      }
+      document.getElementById("upload-title").textContent = selectedFile.name;
+      document.getElementById("upload-hint").textContent = ((selectedFile.size || 0) / 1024).toFixed(1) + " KB selected. Click upload when ready.";
+    }
+
+    function doUpload() {
+      if (!API) return;
+      if (!selectedFile) {
+        showAlert("upload-alert", "warn", "Select a file before uploading.");
+        return;
+      }
+
+      clearAlert("upload-alert");
+
+      var button = document.getElementById("upload-btn");
+      button.disabled = true;
+      button.textContent = "Uploading...";
+
+      var formData = new FormData();
+      formData.append("file", selectedFile);
+
+      req("/api/admin/faqs/upload" + (document.getElementById("replace-mode").checked ? "?replace=true" : ""), {
+        method: "POST",
+        body: formData
+      }).then(function (data) {
+        showAlert("upload-alert", "ok", data.message || "Upload complete.");
+        document.getElementById("faq-file").value = "";
+        updateSelectedFile(null);
+        loadFAQs();
+      }).catch(function (err) {
+        showAlert("upload-alert", "err", err.message);
+      }).finally(function () {
+        button.disabled = !selectedFile;
+        button.textContent = "Upload selected file";
+      });
+    }
+
+    function downloadSampleCsv() {
+      var csv = [
+        "question,answer,keywords",
+        "\"What are your business hours?\",\"We are open Monday to Friday from 9 AM to 6 PM.\",\"hours;timing;support\"",
+        "\"Do you offer refunds?\",\"Yes, we offer a 30 day refund window.\",\"refund;cancel;policy\"",
+        "\"How can I contact support?\",\"Use the chat widget or email support@example.com.\",\"support;contact;email\""
+      ].join("\n");
+
+      var link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      link.download = "sample-faqs.csv";
+      link.click();
+    }
+
+    function loadEscalations() {
+      if (!API) return;
+      clearAlert("escalation-alert");
+      show("escalation-loading", "flex");
+      document.getElementById("escalation-body").innerHTML = "";
+
+      req("/api/escalate").then(function (data) {
+        allEscalations = Array.isArray(data.escalations) ? data.escalations : [];
+        hide("escalation-loading");
+        renderEscalations(allEscalations);
+      }).catch(function (err) {
+        hide("escalation-loading");
+        showAlert("escalation-alert", "err", err.message);
+      });
+    }
+
+    function renderEscalations(list) {
+      document.getElementById("escalation-count").textContent = list.length + " ticket" + (list.length === 1 ? "" : "s");
+      if (!list.length) {
+        document.getElementById("escalation-body").innerHTML = "<tr><td colspan='6' class='empty'>No escalations found yet.</td></tr>";
+        return;
+      }
+
+      document.getElementById("escalation-body").innerHTML = list.map(function (item) {
+        var history = Array.isArray(item.conversationHistory) ? item.conversationHistory : [];
+        var preview = item.issue || (history.length ? history[history.length - 1].content : "-");
+        return [
+          "<tr>",
+            "<td><strong>" + esc(item.name || "Unknown") + "</strong></td>",
+            "<td class='inline-code'>" + esc(item.email || "-") + "</td>",
+            "<td><div class='preview'>" + esc(preview) + "</div></td>",
+            "<td><span class='badge " + badgeClass(item.status) + "'>" + esc(item.status || "pending") + "</span></td>",
+            "<td>" + esc(fmtDateTime(item.createdAt)) + "</td>",
+            "<td><button class='btn btn-secondary btn-small' type='button' onclick='openDrawer(" + JSON.stringify(JSON.stringify(item)).replace(/"/g, "&quot;") + ")'>View</button></td>",
+          "</tr>"
+        ].join("");
+      }).join("");
+    }
+
+    function openDrawer(payload) {
+      var item = JSON.parse(payload);
+      var history = Array.isArray(item.conversationHistory) ? item.conversationHistory : [];
+      document.getElementById("drawer-title").textContent = (item.name || "Unknown") + " conversation";
+      document.getElementById("drawer-subtitle").textContent = (item.email || "-") + " | " + fmtDateTime(item.createdAt);
+
+      if (!history.length) {
+        document.getElementById("drawer-body").innerHTML = "<div class='empty'>No conversation history was saved. Issue: " + esc(item.issue || "-") + "</div>";
+      } else {
+        document.getElementById("drawer-body").innerHTML = history.map(function (message) {
+          var source = message.source === "faq" ? "FAQ" : (message.source === "ai" ? "AI" : "");
+          if (message.role === "user") {
+            return "<div class='msg user'>" + esc(message.content) + "</div>";
+          }
+          return [
+            "<div class='msg bot-wrap'>",
+              source ? "<div class='msg-label'>" + esc(source) + "</div>" : "",
+              "<div class='msg bot'>" + esc(message.content) + "</div>",
+            "</div>"
+          ].join("");
+        }).join("");
+      }
+
+      document.getElementById("drawer").classList.add("show");
+      document.getElementById("drawer-backdrop").classList.add("show");
+    }
+
+    function closeDrawer() {
+      document.getElementById("drawer").classList.remove("show");
+      document.getElementById("drawer-backdrop").classList.remove("show");
+    }
+
+    function resetCrawlView() {
+      if (!document.getElementById("crawl-logs").children.length) {
+        document.getElementById("crawl-logs").innerHTML = "<div class='log-entry'>No crawl has been started yet.</div>";
+      }
+    }
+
+    function appendCrawlLog(entry) {
+      var logs = document.getElementById("crawl-logs");
+      if (logs.children.length === 1 && /No crawl/.test(logs.textContent)) {
+        logs.innerHTML = "";
+      }
+
+      var div = document.createElement("div");
+      div.className = "log-entry " + (entry.status || "");
+      div.textContent = "[" + (entry.status || "info").toUpperCase() + "] " + (entry.message || "");
+      logs.appendChild(div);
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    function startCrawl() {
+      if (!API || crawlRunning) return;
+
+      var url = document.getElementById("crawl-url").value.trim();
+      if (!url) {
+        showAlert("crawl-alert", "warn", "Enter a website or PDF URL first.");
+        return;
+      }
+
+      clearAlert("crawl-alert");
+      document.getElementById("crawl-logs").innerHTML = "";
+      crawlRunning = true;
+
+      var button = document.getElementById("crawl-btn");
+      button.disabled = true;
+      button.textContent = "Crawling...";
+
+      fetch(apiUrl("/api/admin/crawl"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url })
+      }).then(function (response) {
+        if (!response.ok || !response.body) {
+          return response.json().catch(function () {
+            return {};
+          }).then(function (data) {
+            throw new Error(data.error || ("HTTP " + response.status));
+          });
+        }
+
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = "";
+
+        function pump() {
+          return reader.read().then(function (result) {
+            if (result.done) return;
+
+            buffer += decoder.decode(result.value, { stream: true });
+            var events = buffer.split("\n\n");
+            buffer = events.pop() || "";
+
+            events.forEach(function (eventChunk) {
+              var line = eventChunk.split("\n").find(function (part) {
+                return part.indexOf("data:") === 0;
+              });
+              if (!line) return;
+              try {
+                var payload = JSON.parse(line.replace(/^data:\s*/, ""));
+                appendCrawlLog(payload);
+                if (payload.status === "done") {
+                  showAlert("crawl-alert", "ok", payload.message || "Crawl complete.");
+                  loadFAQs();
+                } else if (payload.status === "error") {
+                  showAlert("crawl-alert", "err", payload.message || "Crawl failed.");
+                }
+              } catch (err) {
+                appendCrawlLog({ status: "warning", message: "Could not parse one stream event." });
+              }
+            });
+
+            return pump();
+          });
+        }
+
+        return pump();
+      }).catch(function (err) {
+        appendCrawlLog({ status: "error", message: err.message });
+        showAlert("crawl-alert", "err", err.message);
+      }).finally(function () {
+        crawlRunning = false;
+        button.disabled = false;
+        button.textContent = "Start crawl";
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      var savedApi = normalizeApiBase(localStorage.getItem("cb_admin_api") || "");
+      document.getElementById("api-url-input").value = savedApi || defaultApiBase();
+
+      var fileInput = document.getElementById("faq-file");
+      fileInput.addEventListener("change", function (event) {
+        updateSelectedFile(event.target.files && event.target.files[0]);
+      });
+
+      var dropzone = document.getElementById("upload-box");
+      ["dragenter", "dragover"].forEach(function (eventName) {
+        dropzone.addEventListener(eventName, function (event) {
+          event.preventDefault();
+          dropzone.classList.add("over");
+        });
+      });
+      ["dragleave", "dragend", "drop"].forEach(function (eventName) {
+        dropzone.addEventListener(eventName, function (event) {
+          event.preventDefault();
+          dropzone.classList.remove("over");
+        });
+      });
+      dropzone.addEventListener("drop", function (event) {
+        var file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+        if (file) {
+          fileInput.files = event.dataTransfer.files;
+          updateSelectedFile(file);
+        }
+      });
+
+      document.getElementById("faq-overlay").addEventListener("click", function (event) {
+        if (event.target === this) closeModal();
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeModal();
+          closeDrawer();
+        }
+      });
+
+      connectApi();
+    });
+  </script>
 </body>
 </html>
