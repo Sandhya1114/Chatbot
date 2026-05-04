@@ -14,6 +14,33 @@ const aiClient = new OpenAI({
 const CONTEXT_ONLY_FALLBACK =
   "I'm sorry, I couldn't find that information. Please contact support for more details.";
 
+const FOLLOW_UP_PATTERNS = [
+  /\btell me more\b/i,
+  /\btell more\b/i,
+  /\bmore detail(?:ed)?\b/i,
+  /\bexplain more\b/i,
+  /\bgo deeper\b/i,
+  /\belaborate\b/i,
+  /\bexpand\b/i,
+  /\bdetail\b/i,
+  /\bno about\b/i,
+  /\bnot that\b/i,
+  /\babout (?:the )?website\b/i,
+  /\babout (?:the )?site\b/i,
+  /\babout (?:the )?store\b/i,
+];
+
+const WEBSITE_PATTERNS = [
+  /\bwebsite\b/i,
+  /\bsite\b/i,
+  /\bstore\b/i,
+  /\bstorefront\b/i,
+  /\bplatform\b/i,
+  /\bbusiness\b/i,
+  /\bcompany\b/i,
+  /\bbrand\b/i,
+];
+
 function isValidSessionId(id) {
   if (typeof id !== "string") return false;
   if (id.length < 8 || id.length > 128) return false;
@@ -75,6 +102,98 @@ function buildConciseFallback(text, maxWords = 80) {
   const trimmedWords = allWords.slice(0, maxWords);
   const suffix = trimmedWords.length < allWords.length ? "..." : "";
   return `${trimmedWords.join(" ")}${suffix}`.trim();
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isFollowUpPrompt(message) {
+  const text = String(message || "").trim();
+  if (!text) return false;
+  if (text.split(/\s+/).length <= 4) return true;
+  return FOLLOW_UP_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function isWebsiteIntent(message) {
+  const text = String(message || "").trim();
+  return WEBSITE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function isWebsiteLevelFaq(faq) {
+  const combined = [
+    faq?.question || "",
+    faq?.answer || "",
+    faq?.keywords?.join ? faq.keywords.join(" ") : "",
+  ].join(" ");
+
+  return WEBSITE_PATTERNS.some((pattern) => pattern.test(combined)) ||
+    /what information is available on the (home page|about|faq|contact|blog|shop)/i.test(String(faq?.question || "")) ||
+    /what is .* about\?/i.test(String(faq?.question || ""));
+}
+
+function getConversationSlices(history, currentMessage) {
+  const items = Array.isArray(history) ? history.slice() : [];
+  const currentKey = normalizeText(currentMessage);
+
+  let lastAssistant = null;
+  let previousUser = null;
+  let skippedCurrentUser = false;
+
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const entry = items[i] || {};
+    const role = entry.role === "assistant" ? "assistant" : "user";
+    const content = String(entry.content || "").trim();
+    if (!content) continue;
+
+    if (role === "assistant" && !lastAssistant) {
+      lastAssistant = content;
+      continue;
+    }
+
+    if (role === "user") {
+      const contentKey = normalizeText(content);
+      if (!skippedCurrentUser && currentKey && contentKey === currentKey) {
+        skippedCurrentUser = true;
+        continue;
+      }
+      previousUser = content;
+      break;
+    }
+  }
+
+  return { previousUser, lastAssistant };
+}
+
+function buildEffectiveQuestion(message, conversationHistory) {
+  const trimmed = String(message || "").trim();
+  if (!trimmed) return "";
+
+  const { previousUser, lastAssistant } = getConversationSlices(conversationHistory, trimmed);
+  const followUp = isFollowUpPrompt(trimmed);
+  const websiteIntent = isWebsiteIntent(trimmed) || isWebsiteIntent(previousUser);
+
+  if (!followUp) {
+    return {
+      effectiveQuestion: trimmed,
+      followUp,
+      websiteIntent,
+      previousUser,
+      lastAssistant,
+    };
+  }
+
+  const parts = [trimmed];
+  if (previousUser) parts.push(`Previous topic: ${previousUser}`);
+  if (websiteIntent) parts.push("Focus on the website/store overview, not a single product.");
+
+  return {
+    effectiveQuestion: parts.join(" "),
+    followUp,
+    websiteIntent,
+    previousUser,
+    lastAssistant,
+  };
 }
 
 function combineFaqContexts(faqs, maxItems = 4) {
@@ -163,6 +282,7 @@ Rules:
             pageUrl ? `Current page: ${pageUrl}` : "",
             conversationBlock ? `Recent conversation:\n${conversationBlock}` : "",
             contextBlock ? `Relevant website FAQ data:\n${contextBlock}` : "Relevant website FAQ data:\nNone found.",
+            options.focusInstruction ? `Answer focus: ${options.focusInstruction}` : "",
             `User question:\n${question}`,
             "Helpful answer:"
           ].filter(Boolean).join("\n\n"),
@@ -355,10 +475,13 @@ router.post("/", async (req, res) => {
       pageUrl: String(pageUrl || ""),
     };
 
-    const { match: faqMatch, suggestions, relatedFaqs } = await matchFAQ(trimmedMessage, siteContext);
+    const intent = buildEffectiveQuestion(trimmedMessage, conversationHistory);
+    const { match: faqMatch, suggestions, relatedFaqs } = await matchFAQ(intent.effectiveQuestion, siteContext);
     let suggestionList = (suggestions || []).map(({ id, question }) => ({ id, question }));
+    const shouldForceAiFollowUp = intent.followUp;
+    const shouldForceWebsiteAnswer = intent.websiteIntent && faqMatch && !isWebsiteLevelFaq(faqMatch);
 
-    if (faqMatch) {
+    if (faqMatch && !shouldForceAiFollowUp && !shouldForceWebsiteAnswer) {
       increment("faqAnswered").catch(() => {});
 
       const sourceUrl = extractSourceUrl(faqMatch.answer);
@@ -402,11 +525,14 @@ router.post("/", async (req, res) => {
       conversationHistory,
       siteOrigin: siteContext.siteOrigin,
       pageUrl: siteContext.pageUrl,
+      focusInstruction: intent.websiteIntent
+        ? "The user is asking about the website/store as a whole. Prioritize describing the website, its purpose, features, and sections before discussing individual products."
+        : "",
     });
 
     increment("aiAnswered").catch(() => {});
 
-    if (suggestionList.length === 0) {
+    if (shouldForceAiFollowUp || shouldForceWebsiteAnswer || suggestionList.length === 0) {
       suggestionList = await generateAiSuggestions(trimmedMessage, aiResult.reply, {
         relatedFaqs,
         siteOrigin: siteContext.siteOrigin,
