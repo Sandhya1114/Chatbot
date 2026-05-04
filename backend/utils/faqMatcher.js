@@ -30,6 +30,178 @@ const STOP_WORDS = new Set([
   "html","htm","php","aspx","jsp",
 ]);
 
+function normalizeOrigin(rawUrl) {
+  try {
+    return new URL(String(rawUrl || "").trim()).origin.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function extractSourceUrl(answer) {
+  const match = String(answer || "").match(/Source URL:\s*(https?:\/\/\S+)/i);
+  return match?.[1]?.trim() || "";
+}
+
+function extractPathTokens(pageUrl) {
+  try {
+    const parsed = new URL(String(pageUrl || "").trim());
+    const path = parsed.pathname === "/" ? "home" : parsed.pathname;
+    return tokenize(path.replace(/[-_/]+/g, " "));
+  } catch {
+    return [];
+  }
+}
+
+function isGenericCrawlerQuestion(question) {
+  const normalized = String(question || "").trim().toLowerCase();
+  return (
+    normalized.startsWith("what information is available on the ") ||
+    normalized.startsWith("what other information is available on the ") ||
+    normalized.startsWith("what is ") && normalized.endsWith(" about?")
+  );
+}
+
+function isLowSignalFaq(faq) {
+  const question = String(faq?.question || "").toLowerCase();
+  const answer = String(faq?.answer || "").toLowerCase();
+  return (
+    /what does "?(0 pieces|loading products?|page \d+ of \d+)"?/i.test(question) ||
+    /loading products?/i.test(answer)
+  );
+}
+
+function isSectionExplainQuestion(question) {
+  return /^what does "/i.test(String(question || "").trim());
+}
+
+function extractRouteHintsFromQuery(normalizedQuery) {
+  const hints = [];
+  const routeKeywords = [
+    "home", "shop", "about", "faq", "contact", "blog", "men", "women",
+    "kids", "accessories", "account", "returns", "privacy", "terms", "size"
+  ];
+
+  for (const token of routeKeywords) {
+    if (normalizedQuery.includes(token)) {
+      hints.push(token);
+    }
+  }
+
+  if (normalizedQuery.includes("home page")) {
+    hints.push("home page");
+  }
+
+  return hints;
+}
+
+function filterFAQsForSite(faqs, siteOrigin) {
+  if (!siteOrigin) return faqs;
+
+  const scoped = [];
+  const global = [];
+
+  for (const faq of faqs) {
+    const sourceOrigin = normalizeOrigin(extractSourceUrl(faq.answer));
+    if (sourceOrigin && sourceOrigin === siteOrigin) {
+      scoped.push(faq);
+    } else if (!sourceOrigin) {
+      global.push(faq);
+    }
+  }
+
+  const pool = scoped.length > 0 ? scoped.concat(global) : faqs;
+  return pool.filter((faq) => !isLowSignalFaq(faq));
+}
+
+function scorePageContext(faq, pageUrl, queryHints) {
+  if (!pageUrl) return 0;
+
+  let bonus = 0;
+  const pageTokens = extractPathTokens(pageUrl);
+  const faqText = [
+    faq.question || "",
+    Array.isArray(faq.keywords) ? faq.keywords.join(" ") : "",
+    extractSourceUrl(faq.answer),
+  ].join(" ").toLowerCase();
+
+  for (const token of pageTokens) {
+    if (token && faqText.includes(token)) {
+      bonus += 0.6;
+    }
+  }
+
+  try {
+    const faqSource = extractSourceUrl(faq.answer);
+    if (faqSource) {
+      const sourcePath = new URL(faqSource).pathname.replace(/\/+$/, "") || "/";
+      const currentPath = new URL(pageUrl).pathname.replace(/\/+$/, "") || "/";
+      if (sourcePath === currentPath) {
+        bonus += 2.2;
+      }
+    }
+  } catch {
+    // Ignore URL parsing issues for context scoring.
+  }
+
+  if (!isGenericCrawlerQuestion(faq.question)) {
+    bonus += 0.35;
+  }
+
+  if (Array.isArray(queryHints) && queryHints.length > 0) {
+    const sourceUrl = extractSourceUrl(faq.answer);
+    const combined = [
+      faq.question || "",
+      Array.isArray(faq.keywords) ? faq.keywords.join(" ") : "",
+      sourceUrl,
+    ].join(" ").toLowerCase();
+
+    for (const hint of queryHints) {
+      if (hint === "home page") {
+        try {
+          if (sourceUrl && (new URL(sourceUrl).pathname === "/" || new URL(sourceUrl).pathname === "")) {
+            bonus += 3;
+            continue;
+          }
+        } catch {
+          // Ignore invalid source URLs.
+        }
+      }
+
+      if (combined.includes(hint)) {
+        bonus += 1.8;
+      }
+    }
+  }
+
+  return bonus;
+}
+
+function rankFAQsForContext(faqs, pageUrl) {
+  return [...faqs].sort((a, b) => {
+    const sectionDelta = Number(isSectionExplainQuestion(a.question)) - Number(isSectionExplainQuestion(b.question));
+    if (sectionDelta !== 0) return sectionDelta;
+
+    const genericDelta = Number(isGenericCrawlerQuestion(a.question)) - Number(isGenericCrawlerQuestion(b.question));
+    if (genericDelta !== 0) return genericDelta;
+
+    const contextDelta = scorePageContext(b, pageUrl) - scorePageContext(a, pageUrl);
+    if (contextDelta !== 0) return contextDelta;
+
+    return Number(a.id || 0) - Number(b.id || 0);
+  });
+}
+
+function dedupeFaqsByQuestion(faqs) {
+  const seen = new Set();
+  return faqs.filter((faq) => {
+    const key = String(faq?.question || "").trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // ============================================================
 // loadFAQs() — Fetch from Supabase with 60s in-memory cache
 // ============================================================
@@ -131,7 +303,7 @@ function scorePhraseMatches(text, normalizedQuery, phraseLength, weight) {
 //   +0.5  per question-word PARTIAL match
 //   +2.0  bonus if the raw query contains a 3+ word phrase from the question
 // ============================================================
-function scoreFAQ(faq, queryTokens, normalizedQuery) {
+function scoreFAQ(faq, queryTokens, normalizedQuery, pageUrl, queryHints) {
   let score = 0;
 
   // --- Keyword matching ---
@@ -163,6 +335,11 @@ function scoreFAQ(faq, queryTokens, normalizedQuery) {
   // --- Phrase proximity bonus ---
   score += scorePhraseMatches(faq.question, normalizedQuery, 3, 2.0);
   score += scorePhraseMatches(String(faq.answer || "").slice(0, 400), normalizedQuery, 3, 0.8);
+  score += scorePageContext(faq, pageUrl, queryHints);
+
+  if (!isGenericCrawlerQuestion(faq.question)) {
+    score += 0.15;
+  }
 
   return score;
 }
@@ -175,31 +352,34 @@ function scoreFAQ(faq, queryTokens, normalizedQuery) {
 //   suggestions — top 3 related FAQs (excluding the match),
 //                 to show as contextual quick-replies after reply
 // ============================================================
-async function matchFAQ(userMessage) {
-  const faqs = await loadFAQs();
+async function matchFAQ(userMessage, options = {}) {
+  const faqs = filterFAQsForSite(await loadFAQs(), normalizeOrigin(options.siteOrigin));
   if (faqs.length === 0) return { match: null, suggestions: [] };
 
   const normalizedQuery = userMessage.toLowerCase().replace(/[^\w\s]/g, " ");
   const queryTokens = tokenize(userMessage);
+  const pageUrl = String(options.pageUrl || "");
+  const queryHints = extractRouteHintsFromQuery(normalizedQuery);
 
   // Score every FAQ
   const scored = faqs.map((faq) => ({
     faq,
-    score: scoreFAQ(faq, queryTokens, normalizedQuery),
+    score: scoreFAQ(faq, queryTokens, normalizedQuery, pageUrl, queryHints),
   }));
 
   // Sort descending by score
   scored.sort((a, b) => b.score - a.score);
 
   const MATCH_THRESHOLD = 2.0;
-  const topMatch = scored[0];
+  const topMatch = scored[0] || { faq: null, score: 0 };
   const match = topMatch.score >= MATCH_THRESHOLD ? topMatch.faq : null;
 
   // Suggestions: next best FAQs that have at least a tiny relevance score,
   // or if there's no match at all, return the top 3 from any score.
   const MIN_SUGGESTION_SCORE = match ? 0.5 : 0;
+  const matchQuestionKey = String(match?.question || "").trim().toLowerCase();
   const suggestions = scored
-    .filter((s) => s.faq !== match && s.score > MIN_SUGGESTION_SCORE)
+    .filter((s) => s.faq !== match && String(s.faq?.question || "").trim().toLowerCase() !== matchQuestionKey && s.score > MIN_SUGGESTION_SCORE)
     .slice(0, 3)
     .map((s) => s.faq);
 
@@ -207,18 +387,19 @@ async function matchFAQ(userMessage) {
   // (so there's always something to show)
   if (suggestions.length === 0) {
     const fallback = scored
-      .filter((s) => s.faq !== match)
+      .filter((s) => s.faq !== match && String(s.faq?.question || "").trim().toLowerCase() !== matchQuestionKey)
       .slice(0, 3)
       .map((s) => s.faq);
-    return { match, suggestions: fallback };
+    return { match, suggestions: dedupeFaqsByQuestion(rankFAQsForContext(fallback, pageUrl)) };
   }
 
-  return { match, suggestions };
+  return { match, suggestions: dedupeFaqsByQuestion(rankFAQsForContext(suggestions, pageUrl)) };
 }
 
 // Return all FAQs (used for initial quick-reply buttons on open)
-async function getAllFAQs() {
-  return loadFAQs();
+async function getAllFAQs(options = {}) {
+  const faqs = filterFAQsForSite(await loadFAQs(), normalizeOrigin(options.siteOrigin));
+  return dedupeFaqsByQuestion(rankFAQsForContext(faqs, String(options.pageUrl || "")));
 }
 
 module.exports = { matchFAQ, getAllFAQs, loadFAQs, invalidateFAQCache };

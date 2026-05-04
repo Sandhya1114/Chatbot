@@ -15,6 +15,9 @@ const MAX_TOTAL_FAQS = 250;
 const MAX_ANSWER_CHARS = 1800;
 const MAX_PAGE_TEXT_CHARS = 5000;
 const MAX_KEYWORDS = 12;
+const MAX_SCRIPT_SOURCES = 6;
+const MAX_API_BASES = 4;
+const MAX_PRODUCTS = 60;
 
 const STOP_WORDS = new Set([
   "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
@@ -59,11 +62,35 @@ const SKIPPED_EXTENSIONS = new Set([
   ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
 ]);
 
+const LOW_SIGNAL_PATTERNS = [
+  /\bloading products?\b/gi,
+  /\bloading page\b/gi,
+  /\bpage\s+\d+\s+of\s+\d+\b/gi,
+  /\b0\s+pieces\b/gi,
+  /\b00\b/gi,
+];
+
 function cleanText(value) {
   return String(value || "")
     .replace(/\u00a0/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function sanitizeExtractedText(value) {
+  let text = cleanText(value);
+  for (const pattern of LOW_SIGNAL_PATTERNS) {
+    text = text.replace(pattern, " ");
+  }
+  return cleanText(text);
+}
+
+function normalizeOrigin(rawUrl) {
+  try {
+    return new URL(String(rawUrl || "").trim()).origin;
+  } catch {
+    return "";
+  }
 }
 
 function normalizeInputUrl(rawUrl) {
@@ -465,7 +492,7 @@ function extractHeadingSections($, scope, pageTitle) {
     .find("h1, h2, h3, h4, h5, h6, p, li, td, th, blockquote")
     .each((_, el) => {
       const tagName = (el.tagName || "").toLowerCase();
-      const text = cleanText($(el).text());
+      const text = sanitizeExtractedText($(el).text());
       if (!text || text.length < 3) return;
 
       if (/^h[1-6]$/.test(tagName)) {
@@ -495,8 +522,8 @@ function extractHeadingSections($, scope, pageTitle) {
 
   return sections
     .map((section) => ({
-      heading: cleanText(section.heading),
-      content: cleanText(section.content),
+      heading: sanitizeExtractedText(section.heading),
+      content: sanitizeExtractedText(section.content),
     }))
     .filter((section) => section.heading && section.content && section.content.length > 40);
 }
@@ -617,7 +644,7 @@ function extractPageData(html, pageUrl, origin) {
       ? $("[role='main']").first()
       : $("body");
 
-  const pageText = cleanText(scope.text()).slice(0, MAX_PAGE_TEXT_CHARS);
+  const pageText = sanitizeExtractedText(scope.text()).slice(0, MAX_PAGE_TEXT_CHARS);
   const sections = extractHeadingSections($, scope, pageTitle);
   const discoveredLinks = discoverLinks($, pageUrl, origin);
 
@@ -660,6 +687,214 @@ function extractPageData(html, pageUrl, origin) {
   };
 }
 
+function isUsefulFaq(faq) {
+  const question = cleanText(faq.question);
+  const answer = cleanText(faq.answer);
+  if (!question || !answer || answer.length < 24) return false;
+  if (/what does "?(0 pieces|page \d+ of \d+|loading products?)"?/i.test(question)) return false;
+  if (/loading products?/i.test(answer)) return false;
+  return true;
+}
+
+function discoverScriptUrls(html, pageUrl, origin) {
+  const $ = cheerio.load(html);
+  const scripts = [];
+
+  $("script[src]").each((_, el) => {
+    const src = String($(el).attr("src") || "").trim();
+    if (!src) return;
+
+    try {
+      const absolute = new URL(src, pageUrl);
+      if (absolute.origin !== origin) return;
+      scripts.push(absolute.toString());
+    } catch {
+      // Ignore invalid script URLs.
+    }
+  });
+
+  return dedupeOrdered(scripts).slice(0, MAX_SCRIPT_SOURCES);
+}
+
+function extractApiBasesFromScriptText(scriptText, pageOrigin) {
+  const bases = new Set();
+  const text = String(scriptText || "");
+
+  const absoluteMatches = text.match(/https?:\/\/[^"'`\s)]+\/api\b/gi) || [];
+  for (const match of absoluteMatches) {
+    bases.add(match.replace(/\/+$/, ""));
+  }
+
+  if (/["'`]\/api(?:\/|["'`])/i.test(text) || /\bfetch\s*\(\s*["'`]\/api\//i.test(text)) {
+    bases.add(`${pageOrigin}/api`);
+  }
+
+  return [...bases];
+}
+
+async function discoverApiBases(resource, origin) {
+  if (!resource?.text) return [];
+
+  const scriptUrls = discoverScriptUrls(resource.text, resource.url, origin);
+  const discovered = new Set();
+
+  for (const scriptUrl of scriptUrls) {
+    try {
+      const script = await axios.get(scriptUrl, {
+        timeout: REQUEST_TIMEOUT_MS,
+        responseType: "text",
+        headers: { "User-Agent": USER_AGENT },
+        validateStatus: (status) => status >= 200 && status < 400,
+      });
+
+      for (const base of extractApiBasesFromScriptText(script.data, origin)) {
+        discovered.add(base);
+        if (discovered.size >= MAX_API_BASES) {
+          return [...discovered];
+        }
+      }
+    } catch {
+      // Ignore individual script fetch failures.
+    }
+  }
+
+  return [...discovered];
+}
+
+async function fetchJsonEndpoint(url) {
+  const response = await axios.get(url, {
+    timeout: REQUEST_TIMEOUT_MS,
+    responseType: "json",
+    headers: {
+      "User-Agent": USER_AGENT,
+      Accept: "application/json,text/plain,*/*",
+    },
+    validateStatus: (status) => status >= 200 && status < 400,
+  });
+
+  return response.data;
+}
+
+function buildCatalogFaqs(origin, products, categories) {
+  const faqs = [];
+  const grouped = new Map();
+  const categoryNames = (categories || [])
+    .map((entry) => cleanText(entry.name || entry.slug))
+    .filter(Boolean);
+
+  for (const rawProduct of (products || []).slice(0, MAX_PRODUCTS)) {
+    const name = cleanText(rawProduct.name || rawProduct.title);
+    const description = cleanText(rawProduct.description || rawProduct.summary);
+    const category = cleanText(rawProduct.category || rawProduct.category_name || "shop");
+    const priceValue = rawProduct.price ?? rawProduct.sale_price ?? rawProduct.amount;
+    const price = cleanText(priceValue === undefined || priceValue === null ? "" : priceValue);
+    const stock = cleanText(rawProduct.stock ?? rawProduct.inventory ?? "");
+    const sizes = Array.isArray(rawProduct.sizes) ? dedupeOrdered(rawProduct.sizes) : [];
+    const sourceUrl = category ? `${origin}/${category.toLowerCase()}` : `${origin}/shop`;
+
+    if (!name || !description) continue;
+
+    const detailParts = [description];
+    if (category) detailParts.push(`Category: ${category}.`);
+    if (price) detailParts.push(`Price: ${price}.`);
+    if (stock) detailParts.push(`Stock: ${stock}.`);
+    if (sizes.length) detailParts.push(`Available sizes: ${sizes.join(", ")}.`);
+
+    faqs.push({
+      question: `Tell me about ${name}.`,
+      answer: `Source URL: ${sourceUrl}\n${detailParts.join(" ")}`.trim(),
+      keywords: extractKeywords(name, description, category, price, stock, sizes.join(" "), "product details"),
+    });
+
+    if (price) {
+      faqs.push({
+        question: `What is the price of ${name}?`,
+        answer: `Source URL: ${sourceUrl}\n${name} costs ${price}.${sizes.length ? ` Sizes: ${sizes.join(", ")}.` : ""}`.trim(),
+        keywords: extractKeywords(name, price, category, "price cost"),
+      });
+    }
+
+    if (!grouped.has(category || "shop")) {
+      grouped.set(category || "shop", []);
+    }
+    grouped.get(category || "shop").push(name);
+  }
+
+  if (categoryNames.length) {
+    faqs.push({
+      question: `What categories are available in the store?`,
+      answer: `Source URL: ${origin}/shop\nAvailable categories include ${categoryNames.join(", ")}.`.trim(),
+      keywords: extractKeywords("categories", categoryNames.join(" "), "shop collections"),
+    });
+  }
+
+  for (const category of categories || []) {
+    const slug = cleanText(category.slug || category.name).toLowerCase();
+    const name = cleanText(category.name || category.slug);
+    const count = cleanText(category.count ?? "");
+    if (!name) continue;
+
+    if (count) {
+      faqs.push({
+        question: `How many products are in the ${name} collection?`,
+        answer: `Source URL: ${origin}/${slug}\nThe ${name} collection currently lists ${count} products.`.trim(),
+        keywords: extractKeywords(name, slug, count, "category collection"),
+      });
+    }
+  }
+
+  for (const [category, names] of grouped.entries()) {
+    if (!names.length) continue;
+    const label = category || "shop";
+    faqs.push({
+      question: `What products are available in the ${label} collection?`,
+      answer: `Source URL: ${origin}/${label.toLowerCase()}\n${names.slice(0, 12).join(", ")}.`.trim(),
+      keywords: extractKeywords(label, names.join(" "), "products collection"),
+    });
+  }
+
+  return faqs;
+}
+
+async function extractCatalogFaqsFromApis(resource, origin) {
+  const apiBases = await discoverApiBases(resource, origin);
+  if (!apiBases.length) {
+    return { faqs: [], apiBases: [] };
+  }
+
+  for (const apiBase of apiBases) {
+    try {
+      const [productsPayload, categoriesPayload] = await Promise.all([
+        fetchJsonEndpoint(`${apiBase}/products?limit=${MAX_PRODUCTS}`),
+        fetchJsonEndpoint(`${apiBase}/categories`).catch(() => null),
+      ]);
+
+      const products = Array.isArray(productsPayload)
+        ? productsPayload
+        : Array.isArray(productsPayload?.products)
+        ? productsPayload.products
+        : [];
+
+      const categories = Array.isArray(categoriesPayload)
+        ? categoriesPayload
+        : Array.isArray(categoriesPayload?.categories)
+        ? categoriesPayload.categories
+        : [];
+
+      if (!products.length) continue;
+
+      return {
+        faqs: buildCatalogFaqs(origin, products, categories),
+        apiBases,
+      };
+    } catch {
+      // Try the next discovered API base.
+    }
+  }
+
+  return { faqs: [], apiBases };
+}
+
 async function extractTextFromPDFBuffer(buffer) {
   try {
     const pdfParse = require("pdf-parse");
@@ -699,7 +934,7 @@ function dedupeFAQs(faqs) {
   for (const faq of faqs) {
     const question = cleanText(faq.question);
     const answer = cleanText(faq.answer);
-    if (!question || !answer) continue;
+    if (!question || !answer || !isUsefulFaq({ question, answer })) continue;
 
     const key = `${question.toLowerCase()}::${answer.slice(0, 250).toLowerCase()}`;
     if (seen.has(key)) continue;
@@ -749,6 +984,38 @@ async function saveFAQsToDatabase(faqs) {
 
   invalidateFAQCache();
   return rows.length;
+}
+
+async function deleteExistingFaqsForOrigin(origin) {
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (!normalizedOrigin) return 0;
+
+  const pattern = `%Source URL: ${normalizedOrigin}%`;
+  const { data: existing, error: readError } = await supabase
+    .from("faqs")
+    .select("id")
+    .ilike("answer", pattern);
+
+  if (readError) {
+    throw new Error(`Failed to inspect existing FAQs for ${normalizedOrigin}: ${readError.message}`);
+  }
+
+  if (!existing || existing.length === 0) {
+    return 0;
+  }
+
+  const ids = existing.map((row) => row.id).filter(Boolean);
+  const { error: deleteError } = await supabase
+    .from("faqs")
+    .delete()
+    .in("id", ids);
+
+  if (deleteError) {
+    throw new Error(`Failed to clear previous FAQs for ${normalizedOrigin}: ${deleteError.message}`);
+  }
+
+  invalidateFAQCache();
+  return ids.length;
 }
 
 async function discoverSitemapUrls(origin) {
@@ -808,6 +1075,8 @@ router.post("/", async (req, res) => {
     const queue = [normalizeUrlForQueue(startUrl)];
     const visited = new Set();
     const allFAQs = [];
+    const discoveredApiBases = new Set();
+    let attemptedCatalogApiDiscovery = false;
 
     send({
       status: "crawling",
@@ -885,6 +1154,21 @@ router.post("/", async (req, res) => {
       const pageData = extractPageData(resource.text, resource.url, origin);
       allFAQs.push(...pageData.faqs);
 
+      if (!attemptedCatalogApiDiscovery) {
+        attemptedCatalogApiDiscovery = true;
+        const catalogResult = await extractCatalogFaqsFromApis(resource, origin);
+        if (catalogResult.apiBases?.length) {
+          catalogResult.apiBases.forEach((apiBase) => discoveredApiBases.add(apiBase));
+        }
+        if (catalogResult.faqs.length) {
+          allFAQs.push(...catalogResult.faqs);
+          send({
+            status: "crawling",
+            message: `Discovered ${catalogResult.faqs.length} catalog entries from site APIs.`,
+          });
+        }
+      }
+
       send({
         status: "crawling",
         message: `Captured ${pageData.faqs.length} entries from ${pageData.pageTitle || resource.url}.`,
@@ -914,11 +1198,19 @@ router.post("/", async (req, res) => {
       message: `Saving ${finalFAQs.length} extracted entries to the FAQ database...`,
     });
 
+    const removed = await deleteExistingFaqsForOrigin(origin);
+    if (removed > 0) {
+      send({
+        status: "saving",
+        message: `Removed ${removed} older FAQ entries from ${origin} before saving the fresh crawl.`,
+      });
+    }
+
     const added = await saveFAQsToDatabase(finalFAQs);
 
     send({
       status: "done",
-      message: `Successfully added ${added} route-aware entries from ${startUrl}.`,
+      message: `Successfully added ${added} route-aware entries from ${startUrl}.${discoveredApiBases.size ? ` API sources: ${[...discoveredApiBases].join(", ")}` : ""}`,
       added,
       crawledPages: visited.size,
     });

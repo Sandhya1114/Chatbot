@@ -134,6 +134,22 @@
     try { localStorage.setItem(getStorageKey(appId), id); } catch (e) {}
   }
 
+  function getHostSiteOrigin() {
+    try {
+      return global.location && global.location.origin ? global.location.origin : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function getHostPageUrl() {
+    try {
+      return global.location && global.location.href ? global.location.href : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────
   // API LAYER — mirrors utils/api.js exactly
   // ─────────────────────────────────────────────────────────────
@@ -164,12 +180,23 @@
       sendMessage: function (message, sessionId, appId, conversationHistory) {
         return apiFetch("/api/chat", {
           method: "POST",
-          body: JSON.stringify({ message: message, sessionId: sessionId, appId: appId, conversationHistory: conversationHistory }),
+          body: JSON.stringify({
+            message: message,
+            sessionId: sessionId,
+            appId: appId,
+            conversationHistory: conversationHistory,
+            siteOrigin: getHostSiteOrigin(),
+            pageUrl: getHostPageUrl(),
+          }),
         });
       },
       // GET /api/chat/faqs — initial quick-reply buttons (QuickReplies.jsx)
-      fetchFAQs: function () {
-        return apiFetch("/api/chat/faqs");
+      fetchFAQs: function (appId) {
+        return apiFetch(
+          "/api/chat/faqs?appId=" + encodeURIComponent(appId || "default") +
+          "&siteOrigin=" + encodeURIComponent(getHostSiteOrigin()) +
+          "&pageUrl=" + encodeURIComponent(getHostPageUrl())
+        );
       },
       // DELETE /api/chat/history — clear session (useChat.js clearMessages)
       clearHistory: function (sessionId) {
@@ -769,7 +796,7 @@
   }
 
   function loadInitialFAQs(state, els) {
-    state.api.fetchFAQs()
+    state.api.fetchFAQs(state.cfg.appId)
       .then(function (data) {
         var list = Array.isArray(data.faqs) ? data.faqs : (Array.isArray(data) ? data : []);
         state.allFaqs = list;

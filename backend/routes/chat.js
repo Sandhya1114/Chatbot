@@ -39,6 +39,14 @@ function cleanContextText(text) {
     .trim();
 }
 
+function normalizeSiteOrigin(rawUrl) {
+  try {
+    return new URL(String(rawUrl || "").trim()).origin;
+  } catch {
+    return "";
+  }
+}
+
 function buildConciseFallback(text, maxWords = 80) {
   const normalized = cleanContextText(text);
   if (!normalized) return CONTEXT_ONLY_FALLBACK;
@@ -144,9 +152,10 @@ router.post("/", async (req, res) => {
     sessionId,
     appId = "default",
     conversationHistory = [],
+    siteOrigin = "",
+    pageUrl = "",
   } = req.body;
 
-  void appId;
   void conversationHistory;
 
   if (!message || typeof message !== "string" || message.trim() === "") {
@@ -173,7 +182,13 @@ router.post("/", async (req, res) => {
   );
 
   try {
-    const { match: faqMatch, suggestions } = await matchFAQ(trimmedMessage);
+    const siteContext = {
+      appId,
+      siteOrigin: normalizeSiteOrigin(siteOrigin),
+      pageUrl: String(pageUrl || ""),
+    };
+
+    const { match: faqMatch, suggestions } = await matchFAQ(trimmedMessage, siteContext);
     const suggestionList = (suggestions || []).map(({ id, question }) => ({ id, question }));
 
     if (faqMatch) {
@@ -253,7 +268,11 @@ router.delete("/history", async (req, res) => {
 
 router.get("/faqs", async (req, res) => {
   try {
-    const faqs = await getAllFAQs();
+    const faqs = await getAllFAQs({
+      appId: req.query.appId || "default",
+      siteOrigin: normalizeSiteOrigin(req.query.siteOrigin || ""),
+      pageUrl: String(req.query.pageUrl || ""),
+    });
     const list = Array.isArray(faqs) ? faqs : [];
     const quickReplies = list.map(({ id, question }) => ({ id, question }));
     res.json({ faqs: quickReplies, total: quickReplies.length });
