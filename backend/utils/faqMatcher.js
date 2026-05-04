@@ -202,6 +202,20 @@ function dedupeFaqsByQuestion(faqs) {
   });
 }
 
+function buildRankedFaqs(userMessage, faqs, options = {}) {
+  const normalizedQuery = userMessage.toLowerCase().replace(/[^\w\s]/g, " ");
+  const queryTokens = tokenize(userMessage);
+  const pageUrl = String(options.pageUrl || "");
+  const queryHints = extractRouteHintsFromQuery(normalizedQuery);
+
+  return faqs
+    .map((faq) => ({
+      faq,
+      score: scoreFAQ(faq, queryTokens, normalizedQuery, pageUrl, queryHints),
+    }))
+    .sort((a, b) => b.score - a.score);
+}
+
 // ============================================================
 // loadFAQs() — Fetch from Supabase with 60s in-memory cache
 // ============================================================
@@ -354,25 +368,20 @@ function scoreFAQ(faq, queryTokens, normalizedQuery, pageUrl, queryHints) {
 // ============================================================
 async function matchFAQ(userMessage, options = {}) {
   const faqs = filterFAQsForSite(await loadFAQs(), normalizeOrigin(options.siteOrigin));
-  if (faqs.length === 0) return { match: null, suggestions: [] };
+  if (faqs.length === 0) return { match: null, suggestions: [], relatedFaqs: [] };
 
-  const normalizedQuery = userMessage.toLowerCase().replace(/[^\w\s]/g, " ");
-  const queryTokens = tokenize(userMessage);
   const pageUrl = String(options.pageUrl || "");
-  const queryHints = extractRouteHintsFromQuery(normalizedQuery);
-
-  // Score every FAQ
-  const scored = faqs.map((faq) => ({
-    faq,
-    score: scoreFAQ(faq, queryTokens, normalizedQuery, pageUrl, queryHints),
-  }));
-
-  // Sort descending by score
-  scored.sort((a, b) => b.score - a.score);
+  const scored = buildRankedFaqs(userMessage, faqs, options);
 
   const MATCH_THRESHOLD = 2.0;
   const topMatch = scored[0] || { faq: null, score: 0 };
   const match = topMatch.score >= MATCH_THRESHOLD ? topMatch.faq : null;
+  const relatedFaqs = dedupeFaqsByQuestion(
+    scored
+      .filter((item) => item.score > 0)
+      .slice(0, 5)
+      .map((item) => item.faq)
+  );
 
   // Suggestions: next best FAQs that have at least a tiny relevance score,
   // or if there's no match at all, return the top 3 from any score.
@@ -390,10 +399,18 @@ async function matchFAQ(userMessage, options = {}) {
       .filter((s) => s.faq !== match && String(s.faq?.question || "").trim().toLowerCase() !== matchQuestionKey)
       .slice(0, 3)
       .map((s) => s.faq);
-    return { match, suggestions: dedupeFaqsByQuestion(rankFAQsForContext(fallback, pageUrl)) };
+    return {
+      match,
+      suggestions: dedupeFaqsByQuestion(rankFAQsForContext(fallback, pageUrl)),
+      relatedFaqs,
+    };
   }
 
-  return { match, suggestions: dedupeFaqsByQuestion(rankFAQsForContext(suggestions, pageUrl)) };
+  return {
+    match,
+    suggestions: dedupeFaqsByQuestion(rankFAQsForContext(suggestions, pageUrl)),
+    relatedFaqs,
+  };
 }
 
 // Return all FAQs (used for initial quick-reply buttons on open)

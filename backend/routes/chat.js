@@ -77,6 +77,175 @@ function buildConciseFallback(text, maxWords = 80) {
   return `${trimmedWords.join(" ")}${suffix}`.trim();
 }
 
+function combineFaqContexts(faqs, maxItems = 4) {
+  return (Array.isArray(faqs) ? faqs : [])
+    .slice(0, maxItems)
+    .map((faq, index) => {
+      const question = String(faq?.question || "").trim();
+      const answer = cleanContextText(faq?.answer || "");
+      if (!question || !answer) return "";
+      return `FAQ ${index + 1}\nQuestion: ${question}\nAnswer: ${answer}`;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function buildConversationSummary(history, maxItems = 6) {
+  return (Array.isArray(history) ? history : [])
+    .slice(-maxItems)
+    .map((entry) => {
+      const role = entry?.role === "assistant" ? "Assistant" : "User";
+      const content = String(entry?.content || "").trim();
+      return content ? `${role}: ${content}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildSuggestionObjects(questions, prefix) {
+  return questions
+    .map((question, index) => ({
+      id: `${prefix}-${index + 1}`,
+      question: String(question || "").trim(),
+    }))
+    .filter((item, index, list) =>
+      item.question &&
+      list.findIndex((other) => other.question.toLowerCase() === item.question.toLowerCase()) === index
+    )
+    .slice(0, 3);
+}
+
+function parseSuggestionLines(rawText) {
+  return String(rawText || "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean);
+}
+
+async function generateAiReply(question, options = {}) {
+  const contextBlock = combineFaqContexts(options.relatedFaqs);
+  const conversationBlock = buildConversationSummary(options.conversationHistory);
+  const siteOrigin = normalizeSiteOrigin(options.siteOrigin || "");
+  const pageUrl = String(options.pageUrl || "");
+  const fallbackContext = contextBlock || "";
+
+  if (!process.env.OPENAI_API_KEY) {
+    if (fallbackContext) {
+      return {
+        reply: buildConciseFallback(fallbackContext, 90),
+        sourceUrl: extractSourceUrl(options.relatedFaqs?.[0]?.answer || "") || pageUrl || null,
+      };
+    }
+    return { reply: CONTEXT_ONLY_FALLBACK, sourceUrl: pageUrl || null };
+  }
+
+  try {
+    const model = process.env.AI_MODEL || "gpt-3.5-turbo";
+    const completion = await aiClient.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: `You are a helpful website support assistant.
+
+Rules:
+- Prefer the provided website FAQ context when it is relevant.
+- If the FAQ context is incomplete, you may still answer using general knowledge.
+- Never invent company-specific policies, pricing, stock, shipping times, addresses, or support promises that are not in the provided context.
+- If a site-specific answer is missing, say that you do not see that exact detail in the available website data, then give the best safe general guidance.
+- Keep the reply concise, clear, and natural.
+- Do not mention internal scoring, retrieval, or "provided context".`,
+        },
+        {
+          role: "user",
+          content: [
+            siteOrigin ? `Website origin: ${siteOrigin}` : "",
+            pageUrl ? `Current page: ${pageUrl}` : "",
+            conversationBlock ? `Recent conversation:\n${conversationBlock}` : "",
+            contextBlock ? `Relevant website FAQ data:\n${contextBlock}` : "Relevant website FAQ data:\nNone found.",
+            `User question:\n${question}`,
+            "Helpful answer:"
+          ].filter(Boolean).join("\n\n"),
+        },
+      ],
+      max_tokens: 220,
+      temperature: contextBlock ? 0.35 : 0.55,
+    });
+
+    return {
+      reply: completion.choices[0]?.message?.content?.trim() || CONTEXT_ONLY_FALLBACK,
+      sourceUrl: extractSourceUrl(options.relatedFaqs?.[0]?.answer || "") || pageUrl || null,
+    };
+  } catch (error) {
+    console.error("[Chat] AI fallback error:", error.message);
+    if (fallbackContext) {
+      return {
+        reply: buildConciseFallback(fallbackContext, 90),
+        sourceUrl: extractSourceUrl(options.relatedFaqs?.[0]?.answer || "") || pageUrl || null,
+      };
+    }
+    return { reply: CONTEXT_ONLY_FALLBACK, sourceUrl: pageUrl || null };
+  }
+}
+
+async function generateAiSuggestions(question, reply, options = {}) {
+  const originalQuestionKey = String(question || "").trim().toLowerCase();
+  const fallbackQuestions = buildSuggestionObjects(
+    (options.relatedFaqs || [])
+      .map((faq) => faq.question)
+      .filter((candidate) => String(candidate || "").trim().toLowerCase() !== originalQuestionKey),
+    "faq-suggestion"
+  );
+
+  if (fallbackQuestions.length > 0) {
+    return fallbackQuestions;
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    return [];
+  }
+
+  try {
+    const model = process.env.AI_MODEL || "gpt-3.5-turbo";
+    const contextBlock = combineFaqContexts(options.relatedFaqs, 3);
+    const completion = await aiClient.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: `You create short follow-up questions for a website chatbot.
+
+Rules:
+- Return 1 to 3 suggestions only.
+- Put each suggestion on its own line.
+- Each suggestion must be a concise user question.
+- Keep them grounded in the same website/topic when possible.
+- Do not repeat the original user question.`,
+        },
+        {
+          role: "user",
+          content: [
+            contextBlock ? `Website FAQ context:\n${contextBlock}` : "",
+            `User question: ${question}`,
+            `Assistant reply: ${reply}`,
+          ].filter(Boolean).join("\n\n"),
+        },
+      ],
+      max_tokens: 140,
+      temperature: 0.4,
+    });
+
+    const raw = completion.choices[0]?.message?.content?.trim() || "";
+    return buildSuggestionObjects(
+      parseSuggestionLines(raw).filter((candidate) => candidate.toLowerCase() !== originalQuestionKey),
+      "ai-suggestion"
+    );
+  } catch (error) {
+    console.error("[Chat] AI suggestion error:", error.message);
+    return [];
+  }
+}
+
 async function rewriteFaqAnswer(question, context) {
   const cleanedContext = cleanContextText(context);
   if (!cleanedContext) return CONTEXT_ONLY_FALLBACK;
@@ -156,8 +325,6 @@ router.post("/", async (req, res) => {
     pageUrl = "",
   } = req.body;
 
-  void conversationHistory;
-
   if (!message || typeof message !== "string" || message.trim() === "") {
     return res.status(400).json({ error: "Message is required and must be a non-empty string." });
   }
@@ -188,8 +355,8 @@ router.post("/", async (req, res) => {
       pageUrl: String(pageUrl || ""),
     };
 
-    const { match: faqMatch, suggestions } = await matchFAQ(trimmedMessage, siteContext);
-    const suggestionList = (suggestions || []).map(({ id, question }) => ({ id, question }));
+    const { match: faqMatch, suggestions, relatedFaqs } = await matchFAQ(trimmedMessage, siteContext);
+    let suggestionList = (suggestions || []).map(({ id, question }) => ({ id, question }));
 
     if (faqMatch) {
       increment("faqAnswered").catch(() => {});
@@ -211,6 +378,14 @@ router.post("/", async (req, res) => {
         console.error("[Chat] Failed to save FAQ bot message:", err.message)
       );
 
+      if (suggestionList.length === 0) {
+        suggestionList = await generateAiSuggestions(trimmedMessage, rewrittenReply, {
+          relatedFaqs,
+          siteOrigin: siteContext.siteOrigin,
+          pageUrl: siteContext.pageUrl,
+        });
+      }
+
       return res.json({
         reply: rewrittenReply,
         source: "faq",
@@ -222,11 +397,29 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const aiResult = await generateAiReply(trimmedMessage, {
+      relatedFaqs,
+      conversationHistory,
+      siteOrigin: siteContext.siteOrigin,
+      pageUrl: siteContext.pageUrl,
+    });
+
+    increment("aiAnswered").catch(() => {});
+
+    if (suggestionList.length === 0) {
+      suggestionList = await generateAiSuggestions(trimmedMessage, aiResult.reply, {
+        relatedFaqs,
+        siteOrigin: siteContext.siteOrigin,
+        pageUrl: siteContext.pageUrl,
+      });
+    }
+
     const fallbackMessage = {
       id: `${Date.now()}-b-${Math.random().toString(36).slice(2, 7)}`,
       role: "bot",
-      content: CONTEXT_ONLY_FALLBACK,
-      source: null,
+      content: aiResult.reply,
+      source: "ai",
+      sourceUrl: aiResult.sourceUrl,
       timestamp: new Date().toISOString(),
     };
 
@@ -235,8 +428,9 @@ router.post("/", async (req, res) => {
     );
 
     return res.json({
-      reply: CONTEXT_ONLY_FALLBACK,
-      source: null,
+      reply: aiResult.reply,
+      source: "ai",
+      sourceUrl: aiResult.sourceUrl,
       suggestions: suggestionList,
       messageId: fallbackMessage.id,
       timestamp: fallbackMessage.timestamp,
