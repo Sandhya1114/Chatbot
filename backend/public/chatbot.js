@@ -219,8 +219,24 @@
   // INJECT STYLES — all from global.css + ChatWidget.css +
   //                 ChatBody.css + EscalationModal.css
   // ─────────────────────────────────────────────────────────────
-  function injectStyles(cfg) {
-    if (document.getElementById("cb-styles")) return;
+  function createMountPoint() {
+    var host = document.getElementById("cb-host");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "cb-host";
+      document.body.appendChild(host);
+    }
+
+    host.style.all = "initial";
+
+    var shadow = host.shadowRoot || host.attachShadow({ mode: "open" });
+    while (shadow.firstChild) shadow.removeChild(shadow.firstChild);
+
+    return { host: host, shadow: shadow };
+  }
+
+  function injectStyles(cfg, shadow) {
+    if (shadow.querySelector("#cb-styles")) return;
     var t = cfg.theme;
     var isLeft = cfg.position === "bottom-left";
     var launcherPos = isLeft ? "left:28px;" : "right:28px;";
@@ -230,7 +246,10 @@
       "@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');",
 
       /* CSS Variables — matches global.css exactly */
-      ":root{",
+      ":host{",
+      "all:initial;",
+      "color-scheme:light;",
+      "pointer-events:none;",
       "--cb-primary:"        + t.primary        + ";",
       "--cb-primary-dark:"   + t.primaryDark    + ";",
       "--cb-primary-light:"  + t.primaryLight   + ";",
@@ -259,12 +278,14 @@
       "--cb-shadow-md:0 18px 40px rgba(15,23,42,.10);",
       "--cb-shadow-xl:0 28px 70px rgba(15,23,42,.16);",
       "--cb-shadow-chat:0 32px 70px rgba(79,70,229,.22);",
+      "--cb-z:2147483000;",
       "--cb-tr-fast:150ms ease;--cb-tr-base:250ms ease;",
       "}",
 
       /* Reset scoped to chatbot elements */
-      "#cb-launcher,#cb-root,#cb-modal,",
-      "#cb-launcher *,#cb-root *,#cb-modal *{box-sizing:border-box;margin:0;padding:0;font-family:var(--cb-font);}",
+      "#cb-launcher,#cb-root,#cb-modal,#cb-launcher *,#cb-root *,#cb-modal *{box-sizing:border-box;margin:0;padding:0;font-family:var(--cb-font);}",
+      "#cb-launcher,#cb-root,#cb-modal{pointer-events:auto;}",
+      "button,input,textarea{font:inherit;color:inherit;}",
 
       /* ── LAUNCHER — matches ChatWidget.css .chat-launcher ── */
       "#cb-launcher{",
@@ -276,20 +297,20 @@
       "display:flex;align-items:center;justify-content:center;",
       "box-shadow:var(--cb-shadow-chat);",
       "backdrop-filter:blur(14px);transition:transform var(--cb-tr-base),box-shadow var(--cb-tr-base),filter var(--cb-tr-base);",
-      "z-index:1000;animation:cb-slideUp .4s ease;}",
+      "z-index:var(--cb-z);animation:cb-slideUp .4s ease;}",
       "#cb-launcher:hover{transform:scale(1.05) translateY(-3px);box-shadow:0 34px 72px rgba(79,70,229,.28);filter:saturate(1.05);}",
       "#cb-launcher:active{transform:scale(.96);}",
       "#cb-launcher svg{width:24px;height:24px;transition:transform var(--cb-tr-base);}",
 
       /* ── CHAT WINDOW — matches ChatWidget.css .chat-window ── */
       "#cb-root{",
-      "position:fixed;bottom:100px;" + windowPos,
-      "width:400px;height:620px;",
+      "position:fixed;bottom:104px;" + windowPos,
+      "width:min(420px,calc(100vw - 32px));height:min(680px,calc(100vh - 120px));",
       "background:rgba(255,255,255,.72);border-radius:var(--cb-r-xl);",
       "border:1px solid rgba(255,255,255,.72);backdrop-filter:blur(24px) saturate(1.1);",
       "box-shadow:var(--cb-shadow-xl),0 0 0 1px rgba(255,255,255,.28);",
       "display:flex;flex-direction:column;overflow:hidden;",
-      "z-index:1000;animation:cb-pop .35s cubic-bezier(.34,1.56,.64,1);}",
+      "z-index:calc(var(--cb-z) + 1);animation:cb-pop .35s cubic-bezier(.34,1.56,.64,1);}",
       "#cb-root.cb-hidden{display:none;}",
 
       /* ── HEADER — matches ChatWidget.css .chat-header ── */
@@ -328,7 +349,7 @@
       /* ── MESSAGES — matches ChatBody.css .chat-messages ── */
       ".cb-messages{flex:1;overflow-y:auto;padding:18px 18px 10px;",
       "display:flex;flex-direction:column;gap:16px;",
-      "background:linear-gradient(180deg,rgba(248,250,252,.84),rgba(241,245,249,.92));scroll-behavior:smooth;}",
+      "min-height:0;background:linear-gradient(180deg,rgba(248,250,252,.84),rgba(241,245,249,.92));scroll-behavior:smooth;}",
       ".cb-messages::-webkit-scrollbar{width:6px;}",
       ".cb-messages::-webkit-scrollbar-thumb{background:var(--cb-border);border-radius:var(--cb-r-full);}",
 
@@ -418,7 +439,7 @@
       /* ── ESCALATION MODAL — matches EscalationModal.css ── */
       "#cb-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);",
       "backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;",
-      "z-index:1100;padding:16px;animation:cb-fadeIn .2s ease;}",
+      "z-index:calc(var(--cb-z) + 2);padding:16px;animation:cb-fadeIn .2s ease;}",
       "#cb-modal.cb-hidden{display:none;}",
 
       ".cb-modal-card{background:var(--cb-card);border-radius:var(--cb-r-xl);",
@@ -493,7 +514,7 @@
 
       /* ── MOBILE — matches ChatWidget.css @media (max-width: 480px) ── */
       "@media(max-width:480px){",
-      "#cb-root{width:100%!important;height:100%!important;bottom:0!important;",
+      "#cb-root{width:100vw!important;height:100dvh!important;max-height:none!important;bottom:0!important;",
       "right:0!important;left:0!important;border-radius:0!important;}",
       "#cb-launcher{bottom:20px;" + (isLeft ? "left:20px;" : "right:20px;") + "width:54px;height:54px;}",
       "}",
@@ -502,7 +523,7 @@
     var style = document.createElement("style");
     style.id = "cb-styles";
     style.textContent = css;
-    document.head.appendChild(style);
+    shadow.appendChild(style);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -515,14 +536,15 @@
   // ─────────────────────────────────────────────────────────────
   // BUILD DOM — mirrors ChatWindow.jsx + ChatWidget.jsx structure
   // ─────────────────────────────────────────────────────────────
-  function buildDOM(cfg) {
+  function buildDOM(cfg, mount) {
+    var shadow = mount.shadow;
     // Launcher button
     var launcher = document.createElement("button");
     launcher.id = "cb-launcher";
     launcher.setAttribute("aria-label", "Open chat");
     launcher.setAttribute("aria-expanded", "false");
     launcher.innerHTML = ICON_CHAT;
-    document.body.appendChild(launcher);
+    shadow.appendChild(launcher);
 
     // Chat window
     var root = document.createElement("div");
@@ -570,7 +592,7 @@
         '</div>',
       '</div>',
     ].join("");
-    document.body.appendChild(root);
+    shadow.appendChild(root);
 
     var newBtnLabel = root.querySelector(".cb-new-btn");
     if (newBtnLabel) newBtnLabel.textContent = "New chat";
@@ -621,9 +643,11 @@
         '</div>',
       '</div>',
     ].join("");
-    document.body.appendChild(modal);
+    shadow.appendChild(modal);
 
     return {
+      host:     mount.host,
+      shadow:   shadow,
       launcher: launcher,
       root:     root,
       modal:    modal,
@@ -1188,8 +1212,9 @@
     function boot() {
       var cfg   = mergeConfig(userConfig);
       var state = createState(cfg);
-      injectStyles(cfg);
-      var els   = buildDOM(cfg);
+      var mount = createMountPoint();
+      injectStyles(cfg, mount.shadow);
+      var els   = buildDOM(cfg, mount);
       wireEvents(state, els);
 
       console.log(
@@ -1220,10 +1245,7 @@
         },
         clearHistory: function () { newChat(state, els); },
         destroy: function () {
-          ["cb-styles", "cb-root", "cb-launcher", "cb-modal"].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.remove();
-          });
+          if (els.host) els.host.remove();
           global.__chatbotLoaded = false;
         },
       };
