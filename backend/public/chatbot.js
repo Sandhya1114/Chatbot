@@ -284,7 +284,7 @@
 
       /* Reset scoped to chatbot elements */
       "#cb-launcher,#cb-root,#cb-modal{pointer-events:auto;font-family:var(--cb-font);font-size:16px;line-height:1.5;color:var(--cb-text);}",
-      "#cb-launcher *,#cb-root *,#cb-modal *{box-sizing:border-box;margin:0;padding:0;font-family:inherit;}",
+      // "#cb-launcher *,#cb-root *,#cb-modal *{box-sizing:border-box;margin:0;padding:0;font-family:inherit;}",
       "#cb-root a,#cb-modal a{color:inherit;text-decoration:none;}",
       "#cb-launcher,#cb-root button,#cb-modal button{-webkit-appearance:none;appearance:none;border:none;outline:none;text-decoration:none;}",
       "#cb-root button,#cb-modal button,#cb-root input,#cb-modal input,#cb-root textarea,#cb-modal textarea{font:inherit;color:inherit;letter-spacing:inherit;}",
